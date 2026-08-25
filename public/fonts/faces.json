@@ -1,0 +1,86 @@
+[
+ {
+  "family": "Tinos",
+  "style": "italic",
+  "weight": "400",
+  "file": "tinos-400-italic.woff2"
+ },
+ {
+  "family": "Tinos",
+  "style": "italic",
+  "weight": "700",
+  "file": "tinos-700-italic.woff2"
+ },
+ {
+  "family": "Tinos",
+  "style": "normal",
+  "weight": "400",
+  "file": "tinos-400.woff2"
+ },
+ {
+  "family": "Tinos",
+  "style": "normal",
+  "weight": "700",
+  "file": "tinos-700.woff2"
+ },
+ {
+  "family": "Cinzel",
+  "style": "normal",
+  "weight": "400",
+  "file": "cinzel-400.woff2"
+ },
+ {
+  "family": "Cinzel",
+  "style": "normal",
+  "weight": "700",
+  "file": "cinzel-700.woff2"
+ },
+ {
+  "family": "EB Garamond",
+  "style": "italic",
+  "weight": "400",
+  "file": "eb-garamond-400-italic.woff2"
+ },
+ {
+  "family": "EB Garamond",
+  "style": "italic",
+  "weight": "700",
+  "file": "eb-garamond-700-italic.woff2"
+ },
+ {
+  "family": "EB Garamond",
+  "style": "normal",
+  "weight": "400",
+  "file": "eb-garamond-400.woff2"
+ },
+ {
+  "family": "EB Garamond",
+  "style": "normal",
+  "weight": "700",
+  "file": "eb-garamond-700.woff2"
+ },
+ {
+  "family": "Arimo",
+  "style": "italic",
+  "weight": "400",
+  "file": "arimo-400-italic.woff2"
+ },
+ {
+  "family": "Arimo",
+  "style": "italic",
+  "weight": "700",
+  "file": "arimo-700-italic.woff2"
+ },
+ {
+  "family": "Arimo",
+  "style": "normal",
+  "weight": "400",
+  "file": "arimo-400.woff2"
+ },
+ {
+  "family": "Arimo",
+  "style": "normal",
+  "weight": "700",
+  "file": "arimo-700.woff2"
+ }
+]

@@ -1,0 +1,285 @@
+/* ==========================================================================
+   The brochure document stylesheet.
+
+   Loaded by both the editor canvas and the print route so there is exactly one
+   layout engine. Everything is sized in absolute units (in / px derived from pt)
+   because the output is a fixed 8.5x11in sheet, not a responsive web page.
+   ========================================================================== */
+
+/* --- Metric-compatible fonts ------------------------------------------------
+   Times New Roman and Calibri are proprietary and are not present in headless
+   Chromium. Tinos and Carlito have identical glyph metrics, so line breaks land
+   in the same place on the server as they do on the designer's Mac.           */
+
+@font-face { font-family: 'Tinos'; src: url('/fonts/tinos-400.woff2') format('woff2');        font-weight: 400; font-style: normal;  font-display: block; }
+@font-face { font-family: 'Tinos'; src: url('/fonts/tinos-700.woff2') format('woff2');        font-weight: 700; font-style: normal;  font-display: block; }
+@font-face { font-family: 'Tinos'; src: url('/fonts/tinos-400-italic.woff2') format('woff2'); font-weight: 400; font-style: italic;  font-display: block; }
+@font-face { font-family: 'Tinos'; src: url('/fonts/tinos-700-italic.woff2') format('woff2'); font-weight: 700; font-style: italic;  font-display: block; }
+
+@font-face { font-family: 'Carlito'; src: url('/fonts/carlito-400.woff2') format('woff2');        font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Carlito'; src: url('/fonts/carlito-700.woff2') format('woff2');        font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'Carlito'; src: url('/fonts/carlito-400-italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: block; }
+@font-face { font-family: 'Carlito'; src: url('/fonts/carlito-700-italic.woff2') format('woff2'); font-weight: 700; font-style: italic; font-display: block; }
+
+@font-face { font-family: 'Arimo'; src: url('/fonts/arimo-400.woff2') format('woff2');        font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Arimo'; src: url('/fonts/arimo-700.woff2') format('woff2');        font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'Arimo'; src: url('/fonts/arimo-400-italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: block; }
+@font-face { font-family: 'Arimo'; src: url('/fonts/arimo-700-italic.woff2') format('woff2'); font-weight: 700; font-style: italic; font-display: block; }
+
+@font-face { font-family: 'EB Garamond'; src: url('/fonts/eb-garamond-400.woff2') format('woff2');        font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('/fonts/eb-garamond-700.woff2') format('woff2');        font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('/fonts/eb-garamond-400-italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('/fonts/eb-garamond-700-italic.woff2') format('woff2'); font-weight: 700; font-style: italic; font-display: block; }
+
+@font-face { font-family: 'Cinzel'; src: url('/fonts/cinzel-400.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: 'Cinzel'; src: url('/fonts/cinzel-700.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: block; }
+
+/* --- Sheet ---------------------------------------------------------------- */
+
+.rb-page {
+  position: relative;
+  background: #fff;
+  color: #000;
+  overflow: hidden;
+  font-family: var(--rb-base-font);
+  font-size: var(--rb-base-size);
+  line-height: var(--rb-base-lh);
+  box-sizing: border-box;
+  /* Colour must survive the print pipeline. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.rb-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* A page is a stack of bands: full-width, or a two-column flex row. */
+.rb-band { position: relative; }
+/* A page whose band holds the cover stretches that band to the full sheet.
+   Written as a descendant match, not a child match: in the editor every block
+   is wrapped in a `.blk` selection shell, and a `>` here would silently stop
+   applying — the canvas and the PDF must agree. */
+.rb-band-full:has(.rb-block-cover) { flex: 1 1 auto; min-height: 0; }
+.rb-band-full:has(.rb-block-cover) > .blk { height: 100%; }
+.rb-block-cover { height: 100%; }
+.rb-band-cols { display: flex; align-items: flex-start; }
+.rb-col { min-width: 0; }
+
+.rb-frame { position: absolute; pointer-events: none; z-index: 2; }
+
+.rb-pagenum {
+  position: absolute;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 10.7px;
+  line-height: 1;
+  z-index: 1;
+}
+
+/* --- Block flow ----------------------------------------------------------- */
+
+.rb-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+.rb-block:last-child { margin-bottom: 0; }
+
+.rb-band-full > .rb-block,
+.rb-band-full > .blk > .rb-block { margin-bottom: 6px; }
+
+/* Photos and covers that ignore the page margin. */
+.rb-bleed,
+.rb-block-cover {
+  margin-left: calc(-1 * var(--rb-margin));
+  margin-right: calc(-1 * var(--rb-margin));
+  width: calc(100% + 2 * var(--rb-margin));
+}
+.rb-block-cover {
+  margin-top: calc(-1 * var(--rb-margin));
+  margin-bottom: calc(-1 * var(--rb-margin));
+}
+
+/* --- Rich text ------------------------------------------------------------ */
+
+.rb-rt p { margin: 0 0 6px; }
+.rb-rt p:last-child { margin-bottom: 0; }
+.rb-rt-inline p { margin: 0; }
+.rb-rt ul, .rb-rt ol { margin: 0 0 6px; padding-left: 1.35em; }
+.rb-rt li { margin: 0; }
+.rb-rt a { color: inherit; text-decoration: underline; }
+.rb-rt strong, .rb-rt b { font-weight: 700; }
+
+/* --- Program -------------------------------------------------------------- */
+
+.rb-program-heading {
+  font-family: 'Carlito', Calibri, sans-serif;
+  font-weight: 700;
+  font-size: 18.7px;      /* 14pt */
+  line-height: 1.1;
+  margin-bottom: 2px;
+}
+.rb-program-body { margin-bottom: 4px; }
+.rb-program-meta { margin-top: 4px; }
+.rb-meta-row { display: flex; align-items: baseline; }
+.rb-meta-label { flex: none; }
+.rb-meta-value { font-weight: 700; }
+.rb-program-note {
+  font-family: 'Carlito', Calibri, sans-serif;
+  font-weight: 700;
+  font-size: 13.3px;      /* 10pt */
+  margin-top: 1px;
+}
+
+/* --- Tables --------------------------------------------------------------- */
+
+.rb-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* `auto`, not `fixed`: the column widths below are hints, and the browser is
+     free to give a column more room rather than wrap a date or a time range.
+     The Word original autofits these tables the same way. */
+  table-layout: auto;
+  font-weight: 700;
+  font-size: 13.3px;      /* 10pt — matches body */
+  margin: 3px 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.rb-table th,
+.rb-table td {
+  text-align: left;
+  padding: 0 3px;
+  vertical-align: top;
+  line-height: 1.22;
+  /* Keep short schedule values ("5:30 – 7:00pm", "10/6 - 10/27") intact; long
+     prose in a cell still wraps because of the `normal` override below. */
+  white-space: nowrap;
+  overflow-wrap: break-word;
+}
+.rb-table th { font-weight: 700; }
+.rb-table th > span { text-decoration: underline; }
+/* A cell with real prose in it (rare, but the ratings grid has some) wraps. */
+.rb-table td.rb-cell-wrap { white-space: normal; }
+
+/* --- Label / value list --------------------------------------------------- */
+
+.rb-lv-row { display: flex; align-items: baseline; }
+.rb-lv-label { flex: none; }
+.rb-lv-value { flex: 1; }
+
+/* --- Photos --------------------------------------------------------------- */
+
+.rb-photo { margin: 0; }
+.rb-photo img { max-width: 100%; }
+.rb-caption { font-size: 12px; margin-top: 2px; }
+.rb-photo-empty {
+  border: 1px dashed #9aa3ad;
+  background: #f4f6f8;
+  color: #6b7683;
+  font: 500 13px/1.3 system-ui, sans-serif;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 90px;
+  text-align: center;
+  padding: 8px;
+}
+
+/* --- Cover ---------------------------------------------------------------- */
+
+.rb-cover { display: flex; flex-direction: column; height: 100%; }
+.rb-cover-band {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+  padding: 10px 26px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.rb-cover-photo { flex: none; width: 100%; overflow: hidden; }
+.rb-cover-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rb-cover-kicker { font-weight: 700; font-size: 24px; line-height: 1.15; }
+.rb-cover-title  { font-weight: 700; font-size: 65px; line-height: 1.04; letter-spacing: -0.5px; }
+.rb-cover-sub    { font-weight: 700; font-size: 24px; line-height: 1.2; }
+.rb-cover-footline { font-size: 27px; font-weight: 700; line-height: 1.26; }
+.rb-cover-gap { height: 12px; }
+.rb-cover-bottom .rb-social { margin-top: 10px; }
+
+/* --- Social row ----------------------------------------------------------- */
+
+.rb-social { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; }
+.rb-social-prefix { font-weight: 700; font-size: 27px; }
+.rb-social-item { display: inline-flex; align-items: center; font-weight: 700; font-size: 27px; }
+
+/* --- QR ------------------------------------------------------------------- */
+
+.rb-qr { margin: 0 auto; }
+.rb-qr-caption {
+  background: #000; color: #fff;
+  font-family: 'Carlito', Calibri, sans-serif;
+  font-size: 30px; font-weight: 400; letter-spacing: 2px;
+  text-align: center; border-radius: 10px; margin-top: 6px; padding: 2px 0;
+}
+
+/* --- Sidebar panel -------------------------------------------------------- */
+
+.rb-sidebar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rb-sidebar-logo { display: block; margin: 0 auto 3px; width: 108px; height: auto; }
+.rb-sidebar-title { text-align: center; font-weight: 700; font-size: 24px; line-height: 1.1; margin-bottom: 7px; }
+.rb-sidebar-group { margin-bottom: 9px; }
+.rb-sidebar-label { font-weight: 700; text-decoration: underline; }
+.rb-sidebar-item { line-height: 1.22; }
+
+/* --- Contents box --------------------------------------------------------- */
+
+.rb-directory { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rb-directory-title {
+  font-size: 34px; font-weight: 400; font-style: italic;
+  text-align: center; line-height: 1.05; margin-bottom: 4px;
+}
+.rb-directory-row { display: flex; align-items: baseline; font-weight: 700; line-height: 1.35; }
+.rb-directory-label { flex: none; }
+.rb-directory-dots {
+  flex: 1;
+  margin: 0 6px;
+  border-bottom: 2px dotted currentColor;
+  transform: translateY(-3px);
+}
+.rb-directory-page { flex: none; }
+
+/* --- Registration form ---------------------------------------------------- */
+
+.rb-form-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+.rb-form-cell { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.rb-form-label { flex: none; white-space: nowrap; }
+.rb-form-line { flex: 1; border-bottom: 1px solid #000; height: 0.95em; min-width: 20px; }
+.rb-form-sig { margin-top: 18px; display: flex; flex-direction: column; align-items: flex-end; }
+.rb-form-sig-label { margin-top: 2px; margin-right: 26px; }
+
+/* --- Print ---------------------------------------------------------------- */
+
+@page { size: 8.5in 11in; margin: 0; }
+
+@media print {
+  html, body { margin: 0; padding: 0; background: #fff; }
+  .rb-doc { display: block; }
+  .rb-page {
+    break-after: page;
+    page-break-after: always;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+  .rb-page:last-child { break-after: auto; page-break-after: auto; }
+  .rb-no-print { display: none !important; }
+}
+
+/* --- Highlight box with flanking clip-art --------------------------------- */
+
+.rb-highlight-flank { display: flex; align-items: center; gap: 10px; }
+.rb-highlight-flank > img { flex: none; height: auto; display: block; }

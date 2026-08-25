@@ -1,0 +1,415 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Editor chrome.
+
+   Deliberately plain: flat surfaces, 1px borders, no gradients, no shadows on
+   controls. The only colour on screen should be the brochure itself.
+   ========================================================================== */
+
+:root {
+  --ui-bg: #f2f4f6;
+  --ui-panel: #ffffff;
+  --ui-line: #d3d8de;
+  --ui-line-strong: #aab2bb;
+  --ui-text: #14181c;
+  --ui-muted: #5d6975;
+  --ui-accent: #0b6bcb;
+  --ui-accent-soft: #e4f0fc;
+  --ui-danger: #c0392b;
+  --ui-warn: #9a6200;
+  --ui-warn-soft: #fff4d6;
+  --ui-radius: 6px;
+  --ui-tap: 44px;      /* minimum comfortable touch target */
+  --rail-w: 148px;
+  --panel-w: 320px;
+  --bar-h: 52px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+button { font: inherit; color: inherit; }
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 0 12px;
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover:not(:disabled) { background: #f7f9fb; }
+.btn:active:not(:disabled) { background: #eceff3; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn-primary { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #0a5eb3; }
+.btn-quiet { border-color: transparent; background: transparent; }
+.btn-quiet:hover:not(:disabled) { background: #e7ebf0; }
+.btn-danger { color: var(--ui-danger); }
+.btn-sm { min-height: 30px; padding: 0 8px; font-size: 13px; }
+.btn-icon { min-width: 36px; padding: 0 8px; }
+
+input, select, textarea {
+  font: inherit;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 8px;
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  color: inherit;
+}
+textarea { min-height: 70px; resize: vertical; line-height: 1.4; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--ui-accent); outline-offset: -1px; border-color: var(--ui-accent); }
+
+/* --- Editor shell --------------------------------------------------------- */
+
+.ed { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+.ed-bar {
+  flex: none; height: var(--bar-h);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  background: var(--ui-panel);
+  border-bottom: 1px solid var(--ui-line);
+}
+.ed-title {
+  flex: 1; min-width: 0;
+  border: 1px solid transparent; background: transparent;
+  font-weight: 600; font-size: 15px;
+}
+.ed-title:hover { border-color: var(--ui-line); }
+.ed-status { font-size: 12.5px; color: var(--ui-muted); white-space: nowrap; }
+
+.ed-body { flex: 1; display: flex; min-height: 0; }
+
+.ed-rail {
+  flex: none; width: var(--rail-w);
+  background: var(--ui-panel);
+  border-right: 1px solid var(--ui-line);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px;
+}
+
+.ed-canvas {
+  flex: 1; min-width: 0;
+  overflow: auto; overscroll-behavior: contain;
+  padding: 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  background: var(--ui-bg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ed-panel {
+  flex: none; width: var(--panel-w);
+  background: var(--ui-panel);
+  border-left: 1px solid var(--ui-line);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+
+/* --- Page thumbnails ------------------------------------------------------ */
+
+.thumb {
+  position: relative;
+  display: block; width: 100%;
+  margin-bottom: 8px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 8.5 / 11;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.thumb[data-active='true'] { outline: 2px solid var(--ui-accent); outline-offset: 1px; border-color: var(--ui-accent); }
+.thumb-scale { position: absolute; top: 0; left: 0; transform-origin: top left; pointer-events: none; }
+.thumb-num {
+  position: absolute; bottom: 2px; right: 3px;
+  font-size: 10px; font-weight: 600; color: var(--ui-muted);
+  background: #fff; border-radius: 3px; padding: 0 3px;
+}
+.thumb-warn { position: absolute; top: 2px; right: 3px; font-size: 11px; }
+.thumb-drag {
+  position: absolute; top: 2px; left: 3px;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.9); border: 1px solid var(--ui-line);
+  color: var(--ui-muted); font-size: 12px;
+  cursor: grab; touch-action: none;
+}
+
+/* --- Canvas page wrapper -------------------------------------------------- */
+
+.page-wrap { position: relative; flex: none; }
+
+/* Pages outside the viewport are not laid out or painted — without this the
+   editor holds twenty-eight full letter pages live at once and the tab can die.
+   The hint is placed on `.rb-page`, whose box is always exactly 816x1056, so
+   skipping a page never changes the scroll height. */
+.ed-canvas .rb-page,
+.ed-rail .rb-page {
+  content-visibility: auto;
+  contain-intrinsic-size: 816px 1056px;
+}
+.page-shadow { box-shadow: 0 1px 4px rgba(20,24,28,0.16); }
+.page-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ui-muted); margin-bottom: 6px;
+}
+.page-overflow {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px; padding: 6px 9px;
+  background: var(--ui-warn-soft); color: var(--ui-warn);
+  border: 1px solid #e8cf94; border-radius: var(--ui-radius);
+  font-size: 12.5px;
+}
+
+/* --- Block selection ------------------------------------------------------ */
+
+.blk { position: relative; }
+.blk-hit {
+  position: absolute; inset: -2px;
+  border: 1px solid transparent; border-radius: 3px;
+  pointer-events: none;
+}
+.blk:hover > .blk-hit { border-color: rgba(11,107,203,0.35); }
+.blk[data-selected='true'] > .blk-hit { border: 2px solid var(--ui-accent); }
+.blk[data-dragging='true'] { opacity: 0.35; }
+
+.blk-tools {
+  position: absolute; top: -13px; right: -2px; z-index: 20;
+  display: flex; gap: 1px;
+  background: var(--ui-accent); border-radius: 4px; padding: 1px;
+}
+.blk-tool {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; color: #fff; cursor: pointer;
+  border-radius: 3px; font-size: 13px; line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+.blk-tool:hover { background: rgba(255,255,255,0.22); }
+.blk-tool[data-drag='true'] { cursor: grab; touch-action: none; }
+
+.blk-insert {
+  position: relative; height: 12px; margin: -4px 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 90ms;
+}
+.blk-insert:hover, .blk-insert[data-open='true'] { opacity: 1; }
+.blk-insert::before { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: var(--ui-accent); }
+.blk-insert button {
+  position: relative; z-index: 1;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid var(--ui-accent); background: #fff; color: var(--ui-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
+}
+
+.drop-line { height: 3px; background: var(--ui-accent); border-radius: 2px; margin: 2px 0; }
+.col-drop { outline: 2px dashed var(--ui-accent); outline-offset: -2px; border-radius: 4px; }
+
+/* --- Inspector ------------------------------------------------------------ */
+
+.insp { padding: 12px; }
+.insp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 12px;
+}
+.insp-kind { font-weight: 600; font-size: 14px; }
+.insp-empty { padding: 24px 14px; color: var(--ui-muted); font-size: 14px; line-height: 1.5; }
+
+.fld { margin-bottom: 12px; }
+.fld > label, .fld-label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--ui-muted); margin-bottom: 4px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.fld-row { display: flex; gap: 6px; align-items: center; }
+.fld-row > * { min-width: 0; }
+
+.sect { border-top: 1px solid var(--ui-line); padding-top: 10px; margin-top: 12px; }
+.sect > summary {
+  font-size: 12px; font-weight: 600; color: var(--ui-muted);
+  text-transform: uppercase; letter-spacing: 0.03em;
+  cursor: pointer; list-style: none; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 5px;
+}
+.sect > summary::-webkit-details-marker { display: none; }
+.sect > summary::before { content: '▸'; font-size: 10px; }
+.sect[open] > summary::before { content: '▾'; }
+
+/* --- Swatches ------------------------------------------------------------- */
+
+.swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+.swatch {
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--ui-line-strong); border-radius: 5px;
+  cursor: pointer; position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.swatch[data-active='true'] { outline: 2px solid var(--ui-accent); outline-offset: 1px; }
+.swatch-none {
+  background:
+    linear-gradient(45deg, transparent 45%, var(--ui-danger) 45%, var(--ui-danger) 55%, transparent 55%),
+    #fff;
+}
+
+/* --- Segmented control ---------------------------------------------------- */
+
+.seg { display: flex; border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius); overflow: hidden; }
+.seg > button {
+  flex: 1; min-height: 32px; padding: 0 6px;
+  background: var(--ui-panel); border: 0; border-right: 1px solid var(--ui-line);
+  cursor: pointer; font-size: 13px;
+  -webkit-tap-highlight-color: transparent;
+}
+.seg > button:last-child { border-right: 0; }
+.seg > button[data-active='true'] { background: var(--ui-accent-soft); color: var(--ui-accent); font-weight: 600; }
+
+/* --- Repeating rows (table rows, meta rows, list items) ------------------- */
+
+.rows { display: flex; flex-direction: column; gap: 5px; }
+.row-item { display: flex; gap: 4px; align-items: center; }
+.row-item input { min-height: 30px; font-size: 13px; }
+.row-del {
+  flex: none; width: 26px; height: 30px;
+  border: 1px solid var(--ui-line); background: var(--ui-panel);
+  border-radius: 4px; color: var(--ui-muted); cursor: pointer; font-size: 14px; line-height: 1;
+}
+.row-del:hover { color: var(--ui-danger); border-color: var(--ui-danger); }
+
+/* --- Popover / sheet ------------------------------------------------------ */
+
+.pop-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(20,24,28,0.28); }
+.pop {
+  position: fixed; z-index: 61;
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(20,24,28,0.2);
+  max-height: 78dvh; overflow-y: auto;
+}
+
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
+  background: var(--ui-panel);
+  border-top: 1px solid var(--ui-line-strong);
+  border-radius: 14px 14px 0 0;
+  max-height: 76dvh;
+  display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4px 24px rgba(20,24,28,0.18);
+}
+.sheet-grip { flex: none; padding: 8px 0 4px; display: flex; justify-content: center; }
+.sheet-grip span { width: 38px; height: 4px; border-radius: 2px; background: var(--ui-line-strong); }
+.sheet-body { overflow-y: auto; overscroll-behavior: contain; }
+
+/* --- Add-block menu ------------------------------------------------------- */
+
+.addgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 10px; }
+.addgrid button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  padding: 9px 10px; min-height: var(--ui-tap);
+  background: var(--ui-panel); border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius); cursor: pointer; text-align: left;
+}
+.addgrid button:hover { background: var(--ui-accent-soft); border-color: var(--ui-accent); }
+.addgrid b { font-size: 13.5px; font-weight: 600; }
+.addgrid span { font-size: 11.5px; color: var(--ui-muted); line-height: 1.25; }
+
+/* --- Home / list ---------------------------------------------------------- */
+
+.home { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+.home-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.home-head h1 { font-size: 22px; margin: 0; flex: 1; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.card {
+  background: var(--ui-panel); border: 1px solid var(--ui-line);
+  border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;
+}
+.card-preview {
+  aspect-ratio: 8.5 / 11; background: #fff;
+  border-bottom: 1px solid var(--ui-line);
+  position: relative; overflow: hidden;
+  display: block; cursor: pointer;
+}
+.card-preview .thumb-scale { pointer-events: none; }
+.card-meta { padding: 9px 10px; }
+.card-meta b { display: block; font-size: 14px; line-height: 1.3; }
+.card-meta span { font-size: 12px; color: var(--ui-muted); }
+.card-actions { display: flex; gap: 4px; padding: 0 8px 8px; flex-wrap: wrap; }
+.notice {
+  padding: 9px 12px; margin-bottom: 16px;
+  background: var(--ui-warn-soft); border: 1px solid #e8cf94;
+  border-radius: var(--ui-radius); color: var(--ui-warn); font-size: 13px;
+}
+
+/* --- Tiptap in-place editing ---------------------------------------------- */
+
+.ProseMirror { outline: none; }
+.ProseMirror-focused { outline: none; }
+.rb-editing { outline: 2px solid var(--ui-accent); outline-offset: 2px; border-radius: 2px; }
+
+.rt-bar {
+  position: fixed; z-index: 62;
+  display: flex; gap: 1px; padding: 2px;
+  background: #14181c; border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+}
+.rt-bar button {
+  min-width: 30px; height: 30px; padding: 0 6px;
+  background: transparent; border: 0; color: #fff; cursor: pointer;
+  border-radius: 4px; font-size: 13.5px; line-height: 1;
+}
+.rt-bar button:hover { background: rgba(255,255,255,0.16); }
+.rt-bar button[data-active='true'] { background: var(--ui-accent); }
+.rt-bar input[type='color'] { width: 30px; height: 30px; min-height: 0; padding: 1px; border: 0; background: transparent; cursor: pointer; }
+
+/* --- Responsive ----------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  :root { --panel-w: 280px; --rail-w: 120px; }
+}
+
+/* Phone and iPad portrait: single column, rail and inspector become overlays. */
+@media (max-width: 900px) {
+  .ed-rail, .ed-panel { display: none; }
+  .ed-canvas { padding: 12px 8px 30px; }
+  .ed-bar { height: auto; min-height: var(--bar-h); flex-wrap: wrap; padding: 6px 8px; gap: 6px; }
+  .btn { min-height: var(--ui-tap); }
+  .btn-sm { min-height: 34px; }
+  .addgrid { grid-template-columns: 1fr; }
+}
+
+.only-narrow { display: none; }
+@media (max-width: 900px) { .only-narrow { display: inline-flex; } .only-wide { display: none !important; } }
+
+@media print {
+  /* Printing must lay out every page, so the skipping above is switched off. */
+  .ed-canvas .rb-page, .ed-rail .rb-page { content-visibility: visible; }
+  .ed-bar, .ed-rail, .ed-panel, .blk-tools, .blk-insert, .page-label, .page-overflow, .rt-bar { display: none !important; }
+  .ed, .ed-body, .ed-canvas { display: block; height: auto; overflow: visible; padding: 0; background: #fff; }
+  .page-wrap { margin: 0 !important; }
+  .page-shadow { box-shadow: none !important; }
+}
+
+.rb-print-root { background: #fff; }
+@media screen {
+  .rb-print-root .rb-page { margin: 0 auto 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+}
