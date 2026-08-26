@@ -8,29 +8,28 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "db:push": "drizzle-kit push",
     "seed": "tsx scripts/seed.ts",
     "audit:layout": "node scripts/audit.mjs",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "make-template": "node scripts/make-template.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@neondatabase/serverless": "^1.1.0",
     "@sparticuz/chromium-min": "^149.0.0",
+    "@supabase/supabase-js": "^2.112.4",
     "@tiptap/extension-text-align": "^3.30.3",
     "@tiptap/extension-text-style": "^3.30.3",
     "@tiptap/extension-underline": "^3.30.3",
     "@tiptap/pm": "^3.30.3",
     "@tiptap/react": "^3.30.3",
     "@tiptap/starter-kit": "^3.30.3",
-    "@vercel/blob": "^2.8.0",
     "browser-image-compression": "^2.0.2",
-    "drizzle-orm": "^0.45.2",
     "isomorphic-dompurify": "^3.23.0",
     "nanoid": "^6.0.1",
     "next": "16.3.3",
+    "pdfjs-dist": "^5.7.284",
     "puppeteer-core": "^25.9.0",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
@@ -45,12 +44,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
-    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "server-only": "^0.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"
-  }
+  },
+  "description": "Build and export the Rye Brook Parks & Recreation activity brochure."
 }

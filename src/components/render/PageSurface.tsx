@@ -18,6 +18,14 @@ export type Band =
   | { kind: 'full'; block: Block; start: number }
   | { kind: 'cols'; cols: [Block[], Block[]]; start: number };
 
+/** Splits a page's blocks into the ones that flow and the ones that are placed. */
+export function splitPlaced(blocks: Block[]): { flowed: Block[]; placed: Block[] } {
+  const flowed: Block[] = [];
+  const placed: Block[] = [];
+  for (const b of blocks) (b.pos ? placed : flowed).push(b);
+  return { flowed, placed };
+}
+
 export function toBands(blocks: Block[], columns: 1 | 2): Band[] {
   const bands: Band[] = [];
   let run: Block[] | null = null;
@@ -58,7 +66,8 @@ export function PageSurface({
 }) {
   const { margin, columns, gutter } = pageGeometry(doc, page);
   const contentRef = useRef<HTMLDivElement>(null);
-  const bands = toBands(page.blocks, columns);
+  const { flowed, placed } = splitPlaced(page.blocks);
+  const bands = toBands(flowed, columns);
   const ratio = page.colRatio ?? [1, 1];
 
   // Pages are a fixed size, so anything past the margin box is silently clipped
@@ -132,6 +141,27 @@ export function PageSurface({
           ),
         )}
       </div>
+
+      {placed.length > 0 && (
+        // Placed blocks are measured from the sheet edge, not the margin box, so
+        // they live in their own layer above the flowed content.
+        <div className="rb-placed-layer">
+          {placed.map((b) => (
+            <div
+              key={b.id}
+              className="rb-placed"
+              style={{
+                left: inch(b.pos!.x),
+                top: inch(b.pos!.y),
+                width: inch(b.pos!.w),
+                ...(b.pos!.h ? { height: inch(b.pos!.h) } : {}),
+              }}
+            >
+              {draw(b)}
+            </div>
+          ))}
+        </div>
+      )}
 
       {!page.hideNumber && (
         <div className="rb-pagenum" style={{ bottom: inch(margin * 0.42) }}>

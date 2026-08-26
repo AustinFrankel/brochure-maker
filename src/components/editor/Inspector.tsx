@@ -87,7 +87,7 @@ function TableEditor({ t, onChange, theme }: { t: TableData; onChange: (t: Table
       <div className="fld-row">
         <Num label="Border" value={t.borderWidth} min={0} max={6} onChange={(borderWidth) => onChange({ ...t, borderWidth })} suffix="px" />
       </div>
-      <Swatches label="Border colour" theme={theme} value={t.borderColor} onChange={(c) => onChange({ ...t, borderColor: c ?? '@black' })} />
+      <Swatches label="Border color" theme={theme} value={t.borderColor} onChange={(c) => onChange({ ...t, borderColor: c ?? '@black' })} />
       <Num label="Table text size" value={t.fontSize ?? 11} min={6} max={20} step={0.5} onChange={(fontSize) => onChange({ ...t, fontSize })} suffix="pt" />
     </>
   );
@@ -145,7 +145,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
               </>
             )}
           />
-          <Swatches label="Band colour" theme={theme}
+          <Swatches label="Band color" theme={theme}
             value={c.bandFill.kind === 'color' ? c.bandFill.color : undefined}
             onChange={(col) => p({ bandFill: col ? { kind: 'color', color: col } : { kind: 'none' } })} />
         </>
@@ -157,7 +157,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
       return (
         <>
           <Text label="Heading" value={g.heading} onChange={(heading) => p({ heading })} />
-          <Swatches label="Heading colour" theme={theme} value={g.headingColor} onChange={(c) => p({ headingColor: c ?? '@purple' })} />
+          <Swatches label="Heading color" theme={theme} value={g.headingColor} onChange={(c) => p({ headingColor: c ?? '@purple' })} />
           <Field label="Description">
             <div style={{ fontSize: 12.5, color: 'var(--ui-muted)', lineHeight: 1.4 }}>
               Type straight onto the page — the description is live while this block is selected.
@@ -176,7 +176,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
           />
           <Num label="Detail label width" value={g.metaLabelWidth} min={0} max={200} step={2} onChange={(metaLabelWidth) => p({ metaLabelWidth })} suffix="pt" />
           <Text label="Note under the block" value={g.note} onChange={(note) => p({ note })} placeholder="Checks payable to…" />
-          <Swatches label="Note colour" theme={theme} value={g.noteColor} onChange={(c) => p({ noteColor: c ?? '@violet' })} />
+          <Swatches label="Note color" theme={theme} value={g.noteColor} onChange={(c) => p({ noteColor: c ?? '@violet' })} />
 
           <details className="sect" open={!!g.table}>
             <summary>Schedule table</summary>
@@ -237,7 +237,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
             <Num label="Border" value={ph.borderWidth} min={0} max={8} onChange={(borderWidth) => p({ borderWidth })} suffix="px" />
             <Num label="Corners" value={ph.radius} min={0} max={40} onChange={(radius) => p({ radius })} suffix="px" />
           </div>
-          {ph.borderWidth > 0 && <Swatches label="Border colour" theme={theme} value={ph.borderColor} onChange={(c) => p({ borderColor: c ?? '@black' })} />}
+          {ph.borderWidth > 0 && <Swatches label="Border color" theme={theme} value={ph.borderColor} onChange={(c) => p({ borderColor: c ?? '@black' })} />}
         </>
       );
     }
@@ -260,7 +260,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
           <Num label="Label column width" value={l.labelWidth} min={0} max={240} step={2} onChange={(labelWidth) => p({ labelWidth })} suffix="pt" />
           <Toggle label="Bold labels" value={l.labelBold} onChange={(labelBold) => p({ labelBold })} />
           <Toggle label="Bold values" value={l.valueBold} onChange={(valueBold) => p({ valueBold })} />
-          <Swatches label="Value colour" theme={theme} value={l.valueColor} onChange={(c) => p({ valueColor: c ?? '@black' })} />
+          <Swatches label="Value color" theme={theme} value={l.valueColor} onChange={(c) => p({ valueColor: c ?? '@black' })} />
         </>
       );
     }
@@ -277,7 +277,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
           <div className="fld-row">
             <Num label="Border" value={h.borderWidth} min={0} max={8} onChange={(borderWidth) => p({ borderWidth })} suffix="px" />
           </div>
-          {h.borderWidth > 0 && <Swatches label="Border colour" theme={theme} value={h.borderColor} onChange={(c) => p({ borderColor: c ?? '@black' })} />}
+          {h.borderWidth > 0 && <Swatches label="Border color" theme={theme} value={h.borderColor} onChange={(c) => p({ borderColor: c ?? '@black' })} />}
           <Field label="Side images">
             <div className="fld-row">
               <button className="btn btn-sm" onClick={() => pickImage((leftImage) => p({ leftImage }), alert)}>Left…</button>
@@ -342,7 +342,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
             )}
           />
           <Num label="Border" value={d.borderWidth} min={0} max={8} onChange={(borderWidth) => p({ borderWidth })} suffix="px" />
-          {d.borderWidth > 0 && <Swatches label="Border colour" theme={theme} value={d.borderColor} onChange={(c) => p({ borderColor: c ?? '@black' })} />}
+          {d.borderWidth > 0 && <Swatches label="Border color" theme={theme} value={d.borderColor} onChange={(c) => p({ borderColor: c ?? '@black' })} />}
         </>
       );
     }
@@ -415,7 +415,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
             Separate side-by-side fields on one row with <code>|</code>.
           </div>
           <Text label="Signature label" value={f.signatureLabel} onChange={(signatureLabel) => p({ signatureLabel })} />
-          <Swatches label="Line colour" theme={theme} value={f.lineColor} onChange={(c) => p({ lineColor: c ?? '@black' })} />
+          <Swatches label="Line color" theme={theme} value={f.lineColor} onChange={(c) => p({ lineColor: c ?? '@black' })} />
         </>
       );
     }
@@ -428,7 +428,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
       return (
         <Field>
           <div style={{ fontSize: 12.5, color: 'var(--ui-muted)', lineHeight: 1.45 }}>
-            Type straight onto the page. Select words to bold, italicise, underline or recolour them.
+            Type straight onto the page. Select words to bold, italicize, underline or recolor them.
           </div>
         </Field>
       );
@@ -496,20 +496,52 @@ export function Inspector({ doc }: { doc: Doc }) {
           </div>
         </Field>
         <Seg label="Alignment" value={t.align ?? 'left'} options={ALIGNS} onChange={(align) => setTypo(block.id, { align })} />
-        <Swatches label="Text colour" theme={theme} value={t.color} allowNone noneLabel="Default"
+        <Swatches label="Text color" theme={theme} value={t.color} allowNone noneLabel="Default"
           onChange={(color) => setTypo(block.id, { color })} />
         <Num label="Space below block" value={t.spaceAfter ?? 6} min={0} max={80} step={1} onChange={(spaceAfter) => setTypo(block.id, { spaceAfter })} suffix="pt" />
       </details>
 
-      <details className="sect">
+      <details className="sect" open={!!block.pos}>
         <summary>Position</summary>
-        <Seg label="Width" value={block.span}
-          options={[{ value: 'column', label: 'One column' }, { value: 'full', label: 'Across the page' }]}
-          onChange={(span) => updateBlock(block.id, { span })} />
-        {block.span === 'column' && (doc.pages[pageIndex]?.columns ?? doc.pageSetup.columns) === 2 && (
-          <Seg label="Column" value={block.col ?? 0}
-            options={[{ value: 0, label: 'Left' }, { value: 1, label: 'Right' }]}
-            onChange={(col) => updateBlock(block.id, { col })} />
+
+        {block.pos ? (
+          <>
+            <div style={{ fontSize: 12.5, color: 'var(--ui-muted)', lineHeight: 1.45, marginBottom: 10 }}>
+              This block sits at a fixed spot on the page — drag the ⠿ handle to move it,
+              or set the numbers below.
+            </div>
+            <div className="fld-row">
+              <Num label="From left" value={block.pos.x} min={-2} max={8.5} step={0.02} suffix="in"
+                onChange={(x) => updateBlock(block.id, { pos: { ...block.pos!, x } })} />
+              <Num label="From top" value={block.pos.y} min={-2} max={11} step={0.02} suffix="in"
+                onChange={(y) => updateBlock(block.id, { pos: { ...block.pos!, y } })} />
+            </div>
+            <Num label="Width" value={block.pos.w} min={0.25} max={8.5} step={0.02} suffix="in"
+              onChange={(w) => updateBlock(block.id, { pos: { ...block.pos!, w } })} />
+            <button
+              className="btn btn-sm" style={{ marginTop: 2 }}
+              onClick={() => updateBlock(block.id, { pos: null })}
+            >
+              Let it flow with the page
+            </button>
+          </>
+        ) : (
+          <>
+            <Seg label="Width" value={block.span}
+              options={[{ value: 'column', label: 'One column' }, { value: 'full', label: 'Across the page' }]}
+              onChange={(span) => updateBlock(block.id, { span })} />
+            {block.span === 'column' && (doc.pages[pageIndex]?.columns ?? doc.pageSetup.columns) === 2 && (
+              <Seg label="Column" value={block.col ?? 0}
+                options={[{ value: 0, label: 'Left' }, { value: 1, label: 'Right' }]}
+                onChange={(col) => updateBlock(block.id, { col })} />
+            )}
+            <button
+              className="btn btn-sm" style={{ marginTop: 6 }}
+              onClick={() => updateBlock(block.id, { pos: { x: 1, y: 1, w: 3 } })}
+            >
+              Pin to a fixed spot
+            </button>
+          </>
         )}
       </details>
     </div>
@@ -574,7 +606,7 @@ function PageInspector({ doc, pageIndex }: { doc: Doc; pageIndex: number }) {
           onChange={(v) => updatePage(pageIndex, { frame: v ? { color: '@purple', width: 3, inset: 0.5 } : null })} />
         {frame && (
           <>
-            <Swatches label="Colour" theme={doc.theme} value={frame.color} onChange={(c) => updatePage(pageIndex, { frame: { ...frame, color: c ?? '@purple' } })} />
+            <Swatches label="Color" theme={doc.theme} value={frame.color} onChange={(c) => updatePage(pageIndex, { frame: { ...frame, color: c ?? '@purple' } })} />
             <div className="fld-row">
               <Num label="Thickness" value={frame.width} min={1} max={12} onChange={(width) => updatePage(pageIndex, { frame: { ...frame, width } })} suffix="px" />
               <Num label="Inset" value={frame.inset} min={0} max={2} step={0.05} onChange={(inset) => updatePage(pageIndex, { frame: { ...frame, inset } })} suffix="in" />

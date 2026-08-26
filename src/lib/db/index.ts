@@ -1,21 +1,39 @@
-// NOTE: no `server-only` guard here — `scripts/seed.ts` imports this module
-// directly from Node. The `node:fs` import already makes a client bundle fail.
+/**
+ * Where brochures live.
+ *
+ * Two stores, chosen at runtime:
+ *
+ *  - **Supabase** when the project URL and key are set. This is the deployed
+ *    path: everything is in one Postgres table, so a brochure edited on a laptop
+ *    is the same brochure opened on an iPad a minute later.
+ *  - **A local JSON file** otherwise, so `npm run dev` works the moment you
+ *    clone the repo, with no account to create and nothing to configure.
+ *
+ * Both satisfy the same `Store` interface, and nothing above this file knows or
+ * cares which one is in use.
+ *
+ * There is no authentication anywhere here. That is deliberate: this is an
+ * internal tool for a small group who all share the same brochures, and a login
+ * wall would cost them more than it protects.
+ *
+ * NOTE: no `server-only` guard — `scripts/seed.ts` imports this from Node. The
+ * `node:fs` import already keeps it out of any client bundle.
+ */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
-import type { BrochureMeta, Doc } from '../types';
-import { migrate } from '../doc';
-import { brochures, brochureVersions } from './schema';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { BrochureMeta, Doc } from '@/lib/types';
+import { migrate } from '@/lib/doc';
 
-export interface BrochureRecord extends BrochureMeta { doc: Doc }
+export interface StoredBrochure extends BrochureMeta {
+  doc: Doc;
+}
 
 export interface Store {
   list(): Promise<BrochureMeta[]>;
-  get(id: string): Promise<BrochureRecord | null>;
-  create(title: string, doc: Doc): Promise<BrochureRecord>;
-  update(id: string, patch: { title?: string; doc?: Doc; thumbUrl?: string }): Promise<void>;
+  get(id: string): Promise<StoredBrochure | null>;
+  create(title: string, doc: Doc): Promise<StoredBrochure>;
+  update(id: string, patch: { title?: string; doc?: Doc }): Promise<void>;
   softDelete(id: string): Promise<void>;
   restore(id: string): Promise<void>;
   snapshot(id: string, label: string): Promise<void>;
@@ -23,135 +41,218 @@ export interface Store {
   version(id: string, versionId: string): Promise<Doc | null>;
 }
 
-const meta = (r: { id: string; title: string; doc: unknown; thumbUrl?: string | null; createdAt: Date | string; updatedAt: Date | string }): BrochureMeta => ({
+/* ------------------------------------------------------------------ Supabase */
+
+export const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
+export const SUPABASE_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
+
+export const hasSupabase = () => Boolean(SUPABASE_URL && SUPABASE_KEY);
+
+let client: SupabaseClient | null = null;
+function supabase(): SupabaseClient {
+  client ??= createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return client;
+}
+
+interface Row {
+  id: string;
+  title: string;
+  doc: Doc;
+  thumb_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const toMeta = (r: Omit<Row, 'doc'> & { doc?: Doc }, pageCount: number): BrochureMeta => ({
   id: r.id,
   title: r.title,
-  createdAt: new Date(r.createdAt).toISOString(),
-  updatedAt: new Date(r.updatedAt).toISOString(),
-  pageCount: (r.doc as Doc)?.pages?.length ?? 0,
-  thumbUrl: r.thumbUrl ?? null,
+  thumbUrl: r.thumb_url,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  pageCount,
 });
 
-// --------------------------------------------------------------- Neon / Postgres
-
-function pgStore(url: string): Store {
-  const db = drizzle(neon(url));
+function supabaseStore(): Store {
+  const db = supabase();
+  const fail = (e: { message: string } | null) => { if (e) throw new Error(e.message); };
 
   return {
     async list() {
-      const rows = await db.select().from(brochures).where(isNull(brochures.deletedAt)).orderBy(desc(brochures.updatedAt));
-      return rows.map(meta);
+      const { data, error } = await db
+        .from('brochures')
+        .select('id,title,thumb_url,created_at,updated_at,doc')
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false });
+      fail(error);
+      return (data ?? []).map((r) => toMeta(r as Row, (r as Row).doc?.pages?.length ?? 0));
     },
+
     async get(id) {
-      const [row] = await db.select().from(brochures).where(and(eq(brochures.id, id), isNull(brochures.deletedAt))).limit(1);
-      return row ? { ...meta(row), doc: migrate(row.doc) } : null;
+      const { data, error } = await db
+        .from('brochures').select('*').eq('id', id).is('deleted_at', null).maybeSingle();
+      if (error && error.code !== 'PGRST116') fail(error);
+      if (!data) return null;
+      const r = data as Row;
+      const doc = migrate(r.doc);
+      return { ...toMeta(r, doc.pages.length), doc };
     },
+
     async create(title, doc) {
-      const [row] = await db.insert(brochures).values({ title, doc }).returning();
-      return { ...meta(row), doc: migrate(row.doc) };
+      const { data, error } = await db
+        .from('brochures').insert({ title, doc }).select().single();
+      fail(error);
+      const r = data as Row;
+      return { ...toMeta(r, doc.pages.length), doc };
     },
+
     async update(id, patch) {
-      await db.update(brochures)
-        .set({ ...patch, updatedAt: new Date() })
-        .where(eq(brochures.id, id));
+      const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (patch.title !== undefined) row.title = patch.title;
+      if (patch.doc !== undefined) row.doc = patch.doc;
+      fail((await db.from('brochures').update(row).eq('id', id)).error);
     },
-    async softDelete(id) { await db.update(brochures).set({ deletedAt: new Date() }).where(eq(brochures.id, id)); },
-    async restore(id) { await db.update(brochures).set({ deletedAt: null }).where(eq(brochures.id, id)); },
+
+    async softDelete(id) {
+      fail((await db.from('brochures')
+        .update({ deleted_at: new Date().toISOString() }).eq('id', id)).error);
+    },
+
+    async restore(id) {
+      fail((await db.from('brochures').update({ deleted_at: null }).eq('id', id)).error);
+    },
+
     async snapshot(id, label) {
-      const [row] = await db.select().from(brochures).where(eq(brochures.id, id)).limit(1);
-      if (row) await db.insert(brochureVersions).values({ brochureId: id, doc: row.doc, label });
+      const { data } = await db.from('brochures').select('doc').eq('id', id).maybeSingle();
+      if (!data) return;
+      await db.from('brochure_versions').insert({ brochure_id: id, doc: (data as Row).doc, label });
     },
+
     async versions(id) {
-      const rows = await db.select().from(brochureVersions)
-        .where(eq(brochureVersions.brochureId, id)).orderBy(desc(brochureVersions.createdAt)).limit(50);
-      return rows.map((r) => ({ id: r.id, label: r.label, createdAt: new Date(r.createdAt).toISOString() }));
+      const { data, error } = await db
+        .from('brochure_versions')
+        .select('id,label,created_at')
+        .eq('brochure_id', id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      fail(error);
+      return (data ?? []).map((v) => ({
+        id: v.id as string,
+        label: v.label as string | null,
+        createdAt: v.created_at as string,
+      }));
     },
+
     async version(id, versionId) {
-      const [row] = await db.select().from(brochureVersions).where(eq(brochureVersions.id, versionId)).limit(1);
-      return row && row.brochureId === id ? migrate(row.doc) : null;
+      const { data } = await db
+        .from('brochure_versions').select('doc')
+        .eq('id', versionId).eq('brochure_id', id).maybeSingle();
+      return data ? migrate((data as { doc: Doc }).doc) : null;
     },
   };
 }
 
-// --------------------------------------------------------- Local JSON fallback
-//
-// So `npm run dev` works the moment you clone the repo, before Neon is wired up.
-// Never used in production: `DATABASE_URL` is always set on Vercel.
+/* --------------------------------------------------------------- local file */
 
 interface LocalFile {
   brochures: (BrochureMeta & { doc: Doc; deletedAt: string | null })[];
   versions: { id: string; brochureId: string; doc: Doc; label: string | null; createdAt: string }[];
 }
 
-function localStore(): Store {
-  const file = path.join(process.cwd(), '.data', 'brochures.json');
-  const read = async (): Promise<LocalFile> => {
-    try { return JSON.parse(await fs.readFile(file, 'utf8')); }
-    catch { return { brochures: [], versions: [] }; }
-  };
-  const write = async (d: LocalFile) => {
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, JSON.stringify(d, null, 2));
-  };
-  const rid = () => globalThis.crypto.randomUUID();
+const FILE = path.join(process.cwd(), '.data', 'brochures.json');
+const rid = () => globalThis.crypto.randomUUID();
 
+async function read(): Promise<LocalFile> {
+  try {
+    return JSON.parse(await fs.readFile(FILE, 'utf8')) as LocalFile;
+  } catch {
+    return { brochures: [], versions: [] };
+  }
+}
+
+async function write(d: LocalFile) {
+  await fs.mkdir(path.dirname(FILE), { recursive: true });
+  await fs.writeFile(FILE, JSON.stringify(d, null, 2));
+}
+
+function localStore(): Store {
   return {
     async list() {
       const d = await read();
-      return d.brochures.filter((b) => !b.deletedAt)
+      return d.brochures
+        .filter((b) => !b.deletedAt)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        // `doc` and `deletedAt` are stripped: the list only carries metadata.
         .map((b) => ({
           id: b.id, title: b.title, thumbUrl: b.thumbUrl,
           createdAt: b.createdAt, updatedAt: b.updatedAt,
           pageCount: b.doc.pages.length,
         }));
     },
+
     async get(id) {
       const d = await read();
       const b = d.brochures.find((x) => x.id === id && !x.deletedAt);
-      return b ? { ...b, doc: migrate(b.doc), pageCount: b.doc.pages.length } : null;
+      if (!b) return null;
+      const doc = migrate(b.doc);
+      return { ...b, doc, pageCount: doc.pages.length };
     },
+
     async create(title, doc) {
       const d = await read();
       const now = new Date().toISOString();
-      const rec = { id: rid(), title, doc, thumbUrl: null, createdAt: now, updatedAt: now, pageCount: doc.pages.length, deletedAt: null };
-      d.brochures.push(rec);
+      const rec = {
+        id: rid(), title, doc, thumbUrl: null,
+        createdAt: now, updatedAt: now, pageCount: doc.pages.length, deletedAt: null,
+      };
+      d.brochures.unshift(rec);
       await write(d);
       return rec;
     },
+
     async update(id, patch) {
       const d = await read();
       const b = d.brochures.find((x) => x.id === id);
       if (!b) return;
-      Object.assign(b, patch, { updatedAt: new Date().toISOString() });
+      if (patch.title !== undefined) b.title = patch.title;
+      if (patch.doc !== undefined) b.doc = patch.doc;
+      b.updatedAt = new Date().toISOString();
       await write(d);
     },
+
     async softDelete(id) {
       const d = await read();
       const b = d.brochures.find((x) => x.id === id);
       if (b) { b.deletedAt = new Date().toISOString(); await write(d); }
     },
+
     async restore(id) {
       const d = await read();
       const b = d.brochures.find((x) => x.id === id);
       if (b) { b.deletedAt = null; await write(d); }
     },
+
     async snapshot(id, label) {
       const d = await read();
       const b = d.brochures.find((x) => x.id === id);
       if (!b) return;
-      d.versions.push({ id: rid(), brochureId: id, doc: b.doc, label, createdAt: new Date().toISOString() });
-      d.versions = d.versions.slice(-500);
+      d.versions.unshift({
+        id: rid(), brochureId: id, doc: b.doc, label,
+        createdAt: new Date().toISOString(),
+      });
+      d.versions = d.versions.slice(0, 400);
       await write(d);
     },
+
     async versions(id) {
       const d = await read();
-      return d.versions.filter((v) => v.brochureId === id)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, 50)
+      return d.versions
+        .filter((v) => v.brochureId === id)
         .map(({ id: vid, label, createdAt }) => ({ id: vid, label, createdAt }));
     },
+
     async version(id, versionId) {
       const d = await read();
       const v = d.versions.find((x) => x.id === versionId && x.brochureId === id);
@@ -160,13 +261,12 @@ function localStore(): Store {
   };
 }
 
-let cached: Store | null = null;
+/* -------------------------------------------------------------------- choose */
 
-export function store(): Store {
-  if (cached) return cached;
-  const url = process.env.DATABASE_URL;
-  cached = url ? pgStore(url) : localStore();
-  return cached;
+export function usingLocalStore() {
+  return !hasSupabase();
 }
 
-export const usingLocalStore = () => !process.env.DATABASE_URL;
+export function store(): Store {
+  return hasSupabase() ? supabaseStore() : localStore();
+}

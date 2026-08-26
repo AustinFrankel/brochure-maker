@@ -10,7 +10,7 @@ const base = (col: 0 | 1 = 0) => ({
   id: newId(), span: 'column' as const, col, background: NONE, typo: {} as Typo, padding: 0,
 });
 
-/** Full-width centred section heading (the cyan underlined bar). */
+/** Full-width centered section heading (the cyan underlined bar). */
 export function sec(html: string, typo: Typo = {}): Block {
   return {
     ...base(), span: 'full',

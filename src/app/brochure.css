@@ -169,6 +169,23 @@
 /* A cell with real prose in it (rare, but the ratings grid has some) wraps. */
 .rb-table td.rb-cell-wrap { white-space: normal; }
 
+/* --- Placed blocks -------------------------------------------------------- */
+
+/* Imported pages position their text where the PDF painted it. The layer sits
+   above the flowed content and is transparent to clicks except on the blocks
+   themselves, so a page can mix both kinds without one swallowing the other. */
+.rb-placed-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.rb-placed {
+  position: absolute;
+  pointer-events: auto;
+}
+.rb-placed > .rb-block,
+.rb-placed > .blk > .rb-block { margin-bottom: 0; }
+
 /* --- Label / value list --------------------------------------------------- */
 
 .rb-lv-row { display: flex; align-items: baseline; }

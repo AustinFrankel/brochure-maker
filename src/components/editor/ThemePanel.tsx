@@ -7,7 +7,7 @@ import { Field, FontPicker, Num } from './fields/controls';
 
 /**
  * Document-wide settings. Changing the palette here restyles every block that
- * uses a colour token, so one tap can recolour all fourteen pages.
+ * uses a color token, so one tap can recolor all fourteen pages.
  */
 export function ThemePanel({ doc }: { doc: Doc }) {
   const setTheme = useEditor((s) => s.setTheme);
@@ -26,7 +26,7 @@ export function ThemePanel({ doc }: { doc: Doc }) {
           onChange={(baseLineHeight) => setTheme({ baseLineHeight })} />
       </div>
 
-      <Field label="Colours">
+      <Field label="Colors">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {(Object.keys(PALETTE_LABELS) as (keyof typeof PALETTE_LABELS)[]).map((token) => (
             <label key={token} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: 0 }}>

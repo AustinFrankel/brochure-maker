@@ -78,8 +78,8 @@ export function Toggle({ label, value, onChange }: { label: string; value: boole
 }
 
 /**
- * The one-tap colour picker: the six brand colours, plus white, "none" and a
- * custom well. Used for text colour, fills, borders — everywhere colour appears.
+ * The one-tap color picker: the six brand colors, plus white, "none" and a
+ * custom well. Used for text color, fills, borders — everywhere color appears.
  */
 export function Swatches({ label, value, onChange, theme, allowNone, noneLabel }: {
   label?: string;
@@ -110,7 +110,7 @@ export function Swatches({ label, value, onChange, theme, allowNone, noneLabel }
           />
         ))}
         <input
-          type="color" className="swatch" value={custom} title="Custom colour"
+          type="color" className="swatch" value={custom} title="Custom color"
           style={{ padding: 2 }}
           onChange={(e) => onChange(e.target.value)}
         />

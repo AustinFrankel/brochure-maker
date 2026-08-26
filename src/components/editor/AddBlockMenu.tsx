@@ -9,10 +9,10 @@ import { Overlay } from './Popover';
 const HINTS: Record<BlockType, string> = {
   program:      'Heading, description, schedule box',
   richText:     'A paragraph you can style',
-  sectionTitle: 'Big centred page heading',
+  sectionTitle: 'Big centered page heading',
   infoTable:    'Dates / Time / Fee / Location',
   photo:        'Drop or pick an image',
-  highlightBox: 'Big text on a colour block',
+  highlightBox: 'Big text on a color block',
   labelValue:   'Who: / Date: / Location:',
   qr:           'Scannable link + caption',
   socialRow:    'X and Instagram handles',

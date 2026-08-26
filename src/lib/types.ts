@@ -1,20 +1,30 @@
 /**
  * The brochure document model.
  *
- * A Doc is a list of fixed-size Pages. Each Page holds an ordered list of Blocks
- * that flow top-to-bottom through a 1- or 2-column newspaper grid. Nothing is
- * absolutely positioned: lengthen a paragraph and everything below it reflows,
- * which is the whole point of this editor versus a free canvas.
+ * A Doc is a list of fixed-size Pages. Blocks are laid out one of two ways:
+ *
+ *  - **Flowed** (the default). Blocks stack top-to-bottom through a 1- or
+ *    2-column newspaper grid, so lengthening a paragraph pushes everything
+ *    below it down. This is what the hand-built templates use, and it is the
+ *    reason this is an editor rather than a free canvas.
+ *
+ *  - **Placed** (`block.pos` set). The block sits at fixed coordinates on the
+ *    page. Imported PDFs land this way, because a PDF records where each run of
+ *    text was painted and not why — guessing a flow order from that would move
+ *    things the author never meant to move.
+ *
+ * Both kinds can share a page, and a placed block can be released back into the
+ * flow (and vice versa) from the inspector.
  */
 
 export type Inches = number;
 
-/** Palette slots. Every colour in the document resolves through the theme so a
+/** Palette slots. Every color in the document resolves through the theme so a
  *  single change restyles all pages at once. */
 export type ColorToken =
   | 'cyan' | 'purple' | 'violet' | 'pink' | 'red' | 'black' | 'white';
 
-/** A colour is either a palette token (`"@cyan"`) or a literal (`"#ff0088"`). */
+/** A color is either a palette token (`"@cyan"`) or a literal (`"#ff0088"`). */
 export type Color = string;
 
 export type Fill =
@@ -129,7 +139,7 @@ export interface HighlightBoxProps {
   padding: number;          // pt
   borderColor: Color;
   borderWidth: number;
-  /** Optional clip-art flanking the centred text (the Winterfest callout). */
+  /** Optional clip-art flanking the centered text (the Winterfest callout). */
   leftImage?: string;
   rightImage?: string;
   sideImageWidth?: number;  // pt
@@ -192,12 +202,24 @@ export type BlockProps =
   | { type: 'formFields'; props: FormFieldsProps }
   | { type: 'spacer'; props: SpacerProps };
 
+/** Fixed placement on the page, in inches from the top-left of the sheet. */
+export interface Placement {
+  x: Inches;
+  y: Inches;
+  w: Inches;
+  /** Set only when the block should be a fixed height; otherwise it grows with
+   *  its content, which keeps imported text editable without clipping. */
+  h?: Inches;
+}
+
 export type Block = {
   id: string;
   /** `full` spans both columns; `column` sits inside the column named by `col`. */
   span: 'column' | 'full';
   /** Which column a `span: 'column'` block sits in. Ignored on 1-column pages. */
   col?: 0 | 1;
+  /** When set, the block is placed at these coordinates instead of flowing. */
+  pos?: Placement | null;
   background: Fill;
   typo: Typo;
   /** pt of padding inside the block's background. */

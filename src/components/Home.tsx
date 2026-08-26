@@ -2,13 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import type { BrochureMeta, Doc } from '@/lib/types';
 import { PageSurface } from '@/components/render/PageSurface';
+import { ImportDialog } from '@/components/ImportDialog';
+import type { TemplateInfo } from '@/lib/templates';
 
-const THUMB_SCALE = 190 / 816;
+const THUMB_SCALE = 210 / 816;
 
 function Preview({ doc }: { doc: Doc | null }) {
-  if (!doc?.pages?.length) return null;
+  if (!doc?.pages?.length) return <div className="card-blank">No preview</div>;
   return (
     <div className="thumb-scale" style={{ transform: `scale(${THUMB_SCALE})`, width: 816, height: 1056 }}>
       <PageSurface doc={doc} page={doc.pages[0]} index={0} />
@@ -16,17 +19,21 @@ function Preview({ doc }: { doc: Doc | null }) {
   );
 }
 
-export function Home({ brochures, covers, localMode }: {
+export function Home({ brochures, covers, templates, templateCovers, localMode }: {
   brochures: BrochureMeta[];
   covers: Record<string, Doc>;
+  templates: TemplateInfo[];
+  templateCovers: Record<string, Doc>;
   localMode: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const post = async (url: string, body?: unknown) => {
-    setBusy(url);
+    setBusy(url); setError(null);
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -34,35 +41,18 @@ export function Home({ brochures, covers, localMode }: {
         body: JSON.stringify(body ?? {}),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Something went wrong');
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong.');
       if (data.brochure?.id) router.push(`/edit/${data.brochure.id}`);
       else start(() => router.refresh());
     } catch (e) {
-      alert((e as Error).message);
+      setError((e as Error).message);
     } finally {
       setBusy(null);
     }
   };
 
-  const importJson = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        const doc = JSON.parse(await file.text());
-        await post('/api/brochures', { doc, title: doc.title ?? file.name.replace(/\.json$/, '') });
-      } catch {
-        alert('That file is not a brochure export.');
-      }
-    };
-    input.click();
-  };
-
   const remove = async (b: BrochureMeta) => {
-    if (!confirm(`Move “${b.title}” to the bin? You can restore it from its version history.`)) return;
+    if (!confirm(`Move “${b.title}” to the bin? Its version history is kept.`)) return;
     setBusy(b.id);
     await fetch(`/api/brochures/${b.id}`, { method: 'DELETE' });
     setBusy(null);
@@ -71,56 +61,97 @@ export function Home({ brochures, covers, localMode }: {
 
   return (
     <div className="home">
-      <div className="home-head">
-        <h1>Brochures</h1>
-        <button className="btn" onClick={importJson}>Import .json</button>
-        <button className="btn" disabled={!!busy} onClick={() => post('/api/brochures', { template: 'blank', title: 'Untitled brochure' })}>
-          Blank
+      <header className="home-head">
+        <div>
+          <h1>Brochures</h1>
+          <p className="home-sub">
+            Rye Brook Parks &amp; Recreation. Start from a past season, or bring in a PDF.
+          </p>
+        </div>
+        <ImportDialog onDone={() => setPicking(false)} />
+        <button className="btn btn-primary" disabled={!!busy} onClick={() => setPicking(true)}>
+          New brochure
         </button>
-        <button className="btn btn-primary" disabled={!!busy} onClick={() => post('/api/brochures', { title: 'New brochure' })}>
-          New from template
-        </button>
-      </div>
+      </header>
 
       {localMode && (
         <div className="notice">
-          Running without a database — brochures are saved to <code>.data/brochures.json</code> in the
-          project folder. Set <code>DATABASE_URL</code> to store them in Postgres.
+          Running without cloud storage — brochures are saved to <code>.data/brochures.json</code> on
+          this machine only. Set the Supabase environment variables to sync across devices.
         </div>
+      )}
+      {error && <div className="notice notice-bad">{error}</div>}
+
+      {picking && (
+        <>
+          <div className="pop-scrim" onClick={() => setPicking(false)} />
+          <div className="picker" role="dialog" aria-label="Start a new brochure">
+            <div className="picker-head">
+              <b>Start from</b>
+              <button className="btn btn-sm btn-quiet" onClick={() => setPicking(false)}>Close</button>
+            </div>
+            <div className="picker-grid">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  className="tcard"
+                  disabled={!!busy}
+                  onClick={() => post('/api/brochures', { template: t.id, title: `${t.name} brochure` })}
+                >
+                  <span className="tcard-preview">
+                    <Preview doc={templateCovers[t.id] ?? null} />
+                  </span>
+                  <span className="tcard-meta">
+                    <b>{t.name}</b>
+                    <span>{t.blurb}</span>
+                    <em>{t.pages} page{t.pages === 1 ? '' : 's'}</em>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {brochures.length === 0 ? (
-        <div className="insp-empty" style={{ padding: '40px 0' }}>
-          Nothing here yet. <b>New from template</b> starts you off with the full Fall 2025 brochure —
-          change the dates and fees, then export.
+        <div className="empty">
+          <b>Nothing here yet.</b>
+          <p>
+            <strong>New brochure</strong> starts you off from a past season — change the dates and
+            fees, then export. <strong>Import PDF</strong> brings in any other brochure and makes its
+            text editable.
+          </p>
         </div>
       ) : (
         <div className="cards">
           {brochures.map((b) => (
             <div className="card" key={b.id}>
-              <a className="card-preview" href={`/edit/${b.id}`}>
+              <Link className="card-preview" href={`/edit/${b.id}`}>
                 <Preview doc={covers[b.id] ?? null} />
-              </a>
+              </Link>
               <div className="card-meta">
                 <b>{b.title}</b>
                 <span>
-                  {b.pageCount} page{b.pageCount === 1 ? '' : 's'} · {new Date(b.updatedAt).toLocaleDateString()}
+                  {b.pageCount} page{b.pageCount === 1 ? '' : 's'} · edited{' '}
+                  {new Date(b.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </span>
               </div>
               <div className="card-actions">
-                <a className="btn btn-sm" href={`/edit/${b.id}`}>Edit</a>
+                <Link className="btn btn-sm" href={`/edit/${b.id}`}>Edit</Link>
                 <button className="btn btn-sm" disabled={!!busy}
                   onClick={() => post(`/api/brochures/${b.id}/duplicate`, { title: `${b.title} (copy)` })}>
                   Duplicate
                 </button>
                 <a className="btn btn-sm" href={`/print/${b.id}`} target="_blank" rel="noreferrer">View</a>
-                <button className="btn btn-sm btn-danger" disabled={!!busy} onClick={() => remove(b)}>Delete</button>
+                <button className="btn btn-sm btn-danger" disabled={!!busy} onClick={() => remove(b)}>
+                  Delete
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
-      {pending && <div style={{ marginTop: 16, color: 'var(--ui-muted)', fontSize: 13 }}>Refreshing…</div>}
+      {pending && <p className="home-sub" style={{ marginTop: 16 }}>Refreshing…</p>}
     </div>
   );
 }
