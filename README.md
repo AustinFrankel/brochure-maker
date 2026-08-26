@@ -1,5 +1,7 @@
 # Brochure Maker
 
+**[rye-brook-brochure-maker.vercel.app](https://rye-brook-brochure-maker.vercel.app)**
+
 Build the Rye Brook Parks &amp; Recreation activity brochure in a browser and
 export it as a print-ready PDF.
 
@@ -163,6 +165,7 @@ layer behind `src/lib/db` does not need to change.
 | `npm run lint` | ESLint |
 | `npm run audit:layout <id>` | Report pages that overflow or wrap |
 | `npm run shots <id> [dir]` | Render every page to PNG |
+| `npm test` | Sanitizer security tests |
 | `npm run make-template <pdf> <slug> "<Title>"` | Run a PDF through the importer and bundle the result as a template |
 
 ## Known limits
