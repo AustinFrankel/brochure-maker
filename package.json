@@ -11,7 +11,8 @@
     "seed": "tsx scripts/seed.ts",
     "audit:layout": "node scripts/audit.mjs",
     "shots": "node scripts/shots.mjs",
-    "make-template": "node scripts/make-template.mjs"
+    "make-template": "node scripts/make-template.mjs",
+    "test": "node tests/sanitize.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -26,7 +27,6 @@
     "@tiptap/react": "^3.30.3",
     "@tiptap/starter-kit": "^3.30.3",
     "browser-image-compression": "^2.0.2",
-    "isomorphic-dompurify": "^3.23.0",
     "nanoid": "^6.0.1",
     "next": "16.3.3",
     "pdfjs-dist": "^5.7.284",
