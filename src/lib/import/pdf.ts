@@ -310,8 +310,8 @@ function detectColumns(runs: Run[], pageWidth: number, depth = 0): Column[] {
  * Splits runs into one bucket per column, plus a bucket for anything that
  * genuinely spans them (page headers, section rules).
  */
-function bucketByColumn(runs: Run[], cols: Column[]): { col: Column; runs: Run[] }[] {
-  if (cols.length < 2) return [{ col: cols[0], runs }];
+function bucketByColumn(runs: Run[], cols: Column[]): { col: Column; runs: Run[]; full?: boolean }[] {
+  if (cols.length < 2) return [{ col: cols[0], runs, full: true }];
 
   const buckets = cols.map((col) => ({ col, runs: [] as Run[] }));
   const spanning: Run[] = [];
@@ -332,7 +332,44 @@ function bucketByColumn(runs: Run[], cols: Column[]): { col: Column; runs: Run[]
   }
 
   const full = { x0: cols[0].x0, x1: cols[cols.length - 1].x1 };
-  return [...buckets, { col: full, runs: spanning }].filter((b) => b.runs.length > 0);
+  return [...buckets, { col: full, runs: spanning, full: true }].filter((b) => b.runs.length > 0);
+}
+
+/**
+ * Returns short lines that belong to a full-width paragraph to it.
+ *
+ * A banner that runs across both columns is assigned line by line, and its last
+ * line is usually short enough to sit inside one column — so it is filed there,
+ * away from the sentence it finishes. The two halves then render on top of each
+ * other: "DO NOT CALL. It is the players' the schedule" over "responsibility to
+ * go and check the condition".
+ *
+ * Anything directly beneath a full-width line, on the same left edge and within
+ * a line's pitch, is part of that paragraph and is moved back. The sweep repeats
+ * because reclaiming one line can expose the next.
+ */
+function reclaimFullWidthLines(buckets: { col: Column; lines: Line[]; full?: boolean }[]): void {
+  const wide = buckets.find((b) => b.full);
+  const columns = buckets.filter((b) => b !== wide);
+  if (!wide || !columns.length) return;
+
+  for (let pass = 0; pass < 4; pass++) {
+    let moved = false;
+    for (const bucket of columns) {
+      for (let i = bucket.lines.length - 1; i >= 0; i--) {
+        const line = bucket.lines[i];
+        const above = wide.lines.find((w) =>
+          Math.abs(line.x - w.x) < line.size * 1.2 &&
+          line.y - w.y > 0 && line.y - w.y < line.size * 2.1);
+        if (!above) continue;
+        wide.lines.push(line);
+        bucket.lines.splice(i, 1);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+    wide.lines.sort((a, b) => a.y - b.y || a.x - b.x);
+  }
 }
 
 /* -------------------------------------------------------------- lines & text */
@@ -379,9 +416,21 @@ function sameStyle(a: Line, b: Line) {
  */
 function looksJustified(lines: Line[]): boolean {
   if (lines.length < 3) return false;
+  const size = lines[0].size;
+
   const full = lines.slice(0, -1).map((l) => l.right);
   const spread = Math.max(...full) - Math.min(...full);
-  return spread <= Math.max(2, lines[0].size * 0.22);
+  if (spread > Math.max(2, size * 0.22)) return false;
+
+  // Justified copy ends flush *except* on its last line. A stack of equal-width
+  // values — a column of phone numbers — is flush on every line including the
+  // last, and calling that justified made it look like prose and run all the
+  // numbers together on one line.
+  const last = lines[lines.length - 1];
+  if (last.right > Math.min(...full) - size * 0.5) return false;
+
+  // And it has to be prose: a measure only a few characters wide is a column.
+  return Math.min(...full) - Math.min(...lines.map((l) => l.x)) > size * 8;
 }
 
 /** True when the lines are centered on a common axis rather than left-aligned. */
@@ -445,9 +494,15 @@ const esc = (s: string) =>
  * a capital, or a digit. So a line break is kept unless the next line reads as a
  * continuation of the one above.
  *
- * Keeping the break is also the safer default. It reproduces the original
- * layout exactly, where a wrong guess the other way runs two separate values
- * together on one line.
+ * A break is also treated as soft when the next word plainly could not have
+ * fitted on the line above — the typesetter had no choice there, whatever the
+ * next word happens to start with. That is what keeps a bold sentence like
+ * "Rating Session will take place on March 23rd" from being chopped at every
+ * capital.
+ *
+ * Both of those give way to one exception: a stack of lines that all start and
+ * end at the same place is a column of values, not a paragraph, and its breaks
+ * are always kept. Justified prose also ends flush, so it is excluded by name.
  *
  * A wrapped line ending in a hyphen is usually a word the typesetter broke, so
  * the halves are rejoined and the hyphen dropped: "recrea-" + "tion" should
@@ -501,13 +556,37 @@ function splitCells(para: Line[]): Line[][] {
   return out;
 }
 
-function paragraphHtml(lines: Line[]): string {
+/**
+ * True for a run of lines that all begin and end together — a column of phone
+ * numbers or fees, rather than prose. Justified text also ends flush, so it is
+ * excluded explicitly.
+ */
+function isValueStack(lines: Line[]): boolean {
+  if (lines.length < 2 || looksJustified(lines)) return false;
+  const size = lines[0].size;
+
+  // The decisive test is width. Justified prose is also flush on both edges, and
+  // a paragraph whose last line happens to run full — because the sentence
+  // carries on into the next block — slips past the justification check. But
+  // prose is set across a measure of twenty-odd characters, and a column of
+  // phone numbers or fees is a handful. Without this, whole paragraphs came
+  // back with a hard break on every line: "Teams will<br>be formed by coaches".
+  const measure = Math.max(...lines.map((l) => l.right)) - Math.min(...lines.map((l) => l.x));
+  if (measure > size * 14) return false;
+
+  const spread = (ns: number[]) => Math.max(...ns) - Math.min(...ns);
+  const tol = size * 0.6;
+  return spread(lines.map((l) => l.right)) < tol && spread(lines.map((l) => l.x)) < tol;
+}
+
+function paragraphHtml(lines: Line[], measure: Measure): string {
   // How far the type ran: the longest line of this paragraph. Deliberately not
   // the detected column edge — where no column boundary was found that edge is
   // the whole sheet, and every break then looks like a deliberate one. Lists of
   // equal-width values, the case this would misjudge, are tabular and have
   // already been split into their own cells before reaching here.
   const edge = Math.max(...lines.map((l) => l.right));
+  const stack = isValueStack(lines);
   const parts: string[] = [];
   let open = '';
 
@@ -528,10 +607,15 @@ function paragraphHtml(lines: Line[]): string {
       const tabular = tabStops(prev) > 0 || tabStops(line) > 0;
       // A continuation: the sentence carries on, or a word was broken across it.
       const continues = /^[a-z(]/.test(next) || /[a-z,;:-]$/.test(text);
-      // …and the break has to have been forced by the measure, or it was the
-      // author's own break inside a short line.
-      const forced = prev.right > edge - prev.size * 4;
-      const wrapped = !tabular && text.length > 0 && continues && forced;
+      // Or the next word simply had nowhere to go on the line above.
+      const head = line.runs[0];
+      const firstWord = next.split(/\s+/)[0] ?? '';
+      const needed =
+        measure(' ', head.font, head.h, head.bold, head.italic) +
+        measure(firstWord, head.font, head.h, head.bold, head.italic);
+      const forced = prev.right + needed > edge + 1;
+
+      const wrapped = !tabular && !stack && text.length > 0 && (continues || forced);
       // A lowercase continuation after a hyphen is a broken word, not a compound.
       const softHyphen = wrapped && /[a-z]-$/.test(text) && /^[a-z]/.test(next);
       setStyle('');
@@ -615,11 +699,25 @@ function groundColor(
   const rgb: [number, number, number] = [
     ((best >> 10) & 31) << 3, ((best >> 5) & 31) << 3, (best & 31) << 3,
   ];
+
+  // Count everything close to the winner, not only exact matches. A panel with
+  // a soft gradient or a rounded border is still a flat enough ground to paint
+  // on, but its pixels scatter across neighbouring buckets and an exact count
+  // reads it as busy — which left the header row of every schedule table stuck
+  // in the background image instead of becoming editable text.
+  let near = 0;
+  for (const [k, n] of counts) {
+    const dr = (((k >> 10) & 31) << 3) - rgb[0];
+    const dg = (((k >> 5) & 31) << 3) - rgb[1];
+    const db = ((k & 31) << 3) - rgb[2];
+    if (dr * dr + dg * dg + db * db <= 1200) near += n;
+  }
+
   // The quantization above floors each channel, so paper sampled at 255 comes
   // back as 248 and the patch reads as a faint grey box. Snap it back to white.
   for (let c = 0; c < 3; c++) if (rgb[c] >= 240) rgb[c] = 255;
 
-  return { rgb, fraction: total ? bestN / total : 0 };
+  return { rgb, fraction: total ? near / total : 0 };
 }
 
 /** Darkest pixel in a box — for text on a lighter ground, that is the ink. */
@@ -701,6 +799,44 @@ export async function importPdf(file: File, opts: ImportOptions): Promise<Doc> {
 
 type PdfDoc = import('pdfjs-dist').PDFDocumentProxy;
 
+/**
+ * Where a block would run into the one below it, closes its leading just enough
+ * to fit.
+ *
+ * Substituting Tinos for Times is faithful to a fraction of a point, and over a
+ * paragraph those fractions occasionally add a line. Because these blocks are
+ * positioned absolutely, that line does not push its neighbour down — it prints
+ * on top of it. Three percent tighter leading is not something anyone will
+ * notice; two paragraphs printed over each other is the first thing they will.
+ *
+ * The adjustment is deliberately small and floored: where a block is far too
+ * tall the cause is something else, and squashing it would only hide that.
+ */
+function tightenColliding(blocks: { pos: Placement; typo: Typo; lines: number }[]): void {
+  const order = [...blocks].sort((a, b) => a.pos.y - b.pos.y);
+
+  for (let i = 0; i < order.length; i++) {
+    const a = order[i];
+    const size = (a.typo.size ?? 10) / PT_PER_INCH;
+    const lead = a.typo.lineHeight ?? 1.15;
+    const height = a.lines * size * lead;
+
+    let room = Infinity;
+    for (let j = i + 1; j < order.length; j++) {
+      const b = order[j];
+      const overlapX =
+        Math.min(a.pos.x + a.pos.w, b.pos.x + b.pos.w) - Math.max(a.pos.x, b.pos.x);
+      if (overlapX > 0.1 && b.pos.y > a.pos.y) room = Math.min(room, b.pos.y - a.pos.y);
+    }
+    if (!Number.isFinite(room) || height <= room) continue;
+
+    const needed = room / (a.lines * size);
+    if (needed >= lead * 0.9 && needed >= 0.92) {
+      a.typo.lineHeight = Math.round(needed * 100) / 100;
+    }
+  }
+}
+
 async function importPage(
   pdf: PdfDoc,
   n: number,
@@ -749,8 +885,10 @@ async function importPage(
   // Columns first, then lines and paragraphs inside each one. Doing it in this
   // order is what stops two columns being welded into one sentence.
   const columns = detectColumns(runs, ptW);
-  const groups = bucketByColumn(runs, columns)
-    .map((b) => ({ col: b.col, paragraphs: toParagraphs(measureLines(b.runs)) }));
+  const buckets = bucketByColumn(runs, columns)
+    .map((b) => ({ col: b.col, full: b.full, lines: measureLines(b.runs) }));
+  reclaimFullWidthLines(buckets);
+  const groups = buckets.map((b) => ({ col: b.col, paragraphs: toParagraphs(b.lines) }));
 
   // --- sample colors, then paint the original glyphs out ----------------
   report(`Cleaning page ${n}`);
@@ -759,7 +897,7 @@ async function importPage(
   const clampX = (v: number) => Math.max(0, Math.min(canvas.width - 1, Math.round(v)));
   const clampY = (v: number) => Math.max(0, Math.min(canvas.height - 1, Math.round(v)));
 
-  const blocks: { html: string; pos: Placement; typo: Typo }[] = [];
+  const blocks: { html: string; pos: Placement; typo: Typo; lines: number }[] = [];
 
   for (const { col, paragraphs } of groups) {
   // A paragraph whose lines are built from tab stops is a table. Emitting it as
@@ -768,7 +906,7 @@ async function importPage(
   // the x the PDF gave it. The columns stay aligned and every figure stays
   // editable, which is exactly the part of a brochure that changes each season.
   for (const para of paragraphs.flatMap(splitCells)) {
-    const html = paragraphHtml(para);
+    const html = paragraphHtml(para, measure);
     if (!html) continue;
 
     const x = Math.min(...para.map((l) => l.x));
@@ -777,10 +915,14 @@ async function importPage(
     const top = para[0].y;
     const bottom = para[para.length - 1].y + size;
 
+    // `top` is already a full em above the baseline, which clears the tallest
+    // ascender, so almost no headroom is needed. Padding it further reached into
+    // the line above and erased the top half of it — which is what clipped the
+    // header row off every schedule table.
     const bx0 = clampX((x - 1) * scale);
-    const by0 = clampY((top - size * 0.28) * scale);
+    const by0 = clampY((top - size * 0.03) * scale);
     const bx1 = clampX((right + 1) * scale);
-    const by1 = clampY((bottom + size * 0.34) * scale);
+    const by1 = clampY((bottom + size * 0.26) * scale);   // descenders only
     if (bx1 <= bx0 || by1 <= by0) continue;
 
     const ground = groundColor(pixels, canvas.width, canvas.height, bx0, by0, bx1, by1);
@@ -808,7 +950,19 @@ async function importPage(
     const lineGap = para.length > 1 ? (para[1].y - para[0].y) / size : 1.15;
     const first = para[0].runs[0];
 
+    const setWidthPt = para.length > 1
+      ? Math.max(col.x1, right + 3,
+          x + widthForOriginalLines(para, Math.max(col.x1, right + 3) - x,
+            Math.min(ptW - 6, col.x1 + (col.x1 - col.x0) * 0.25) - x, measure)) - x
+      : Math.min(right + size * 0.6, col.x1) - x;
+
     blocks.push({
+      // Explicit breaks set their own lines on top of whatever the text wraps
+      // to, so they have to be counted or the height estimate runs short.
+      lines: Math.max(
+        para.length,
+        countLines(toWords(para), setWidthPt, measure) + (html.match(/<br>/g)?.length ?? 0),
+      ),
       html,
       pos: {
         // Rounded to thousandths of an inch — finer than any printer resolves,
@@ -822,14 +976,7 @@ async function importPage(
         // line longer than the original. Since these blocks are positioned
         // absolutely, that extra line does not push the next block down — it
         // lands on top of it. A single line only needs the width it occupies.
-        w: round3(Math.max(0.25, (para.length > 1
-          ? x + widthForOriginalLines(
-              para,
-              Math.max(col.x1, right + 3) - x,
-              Math.min(ptW - 6, col.x1 + (col.x1 - col.x0) * 0.25) - x,
-              measure,
-            )
-          : Math.min(right + size * 0.6, col.x1)) - x) / PT_PER_INCH),
+        w: round3(Math.max(0.25, setWidthPt) / PT_PER_INCH),
       },
       typo: {
         font: first.font,
@@ -845,6 +992,9 @@ async function importPage(
     });
   }
   }
+
+  // --- keep neighbours from colliding ------------------------------------
+  tightenColliding(blocks);
 
   // --- the cleaned render becomes the page background --------------------
   report(`Storing page ${n}`);
