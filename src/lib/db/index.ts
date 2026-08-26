@@ -43,16 +43,21 @@ export interface Store {
 
 /* ------------------------------------------------------------------ Supabase */
 
-export const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
-export const SUPABASE_KEY =
+/**
+ * Read on use, not at import. A script that loads a .env file does so in its own
+ * module body, which runs *after* its imports have already been evaluated — so
+ * capturing these into constants here meant a seed script silently wrote to the
+ * local JSON file while the app was talking to Supabase.
+ */
+const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
+const supabaseKey = () =>
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
 
-export const hasSupabase = () => Boolean(SUPABASE_URL && SUPABASE_KEY);
+export const hasSupabase = () => Boolean(supabaseUrl() && supabaseKey());
 
 let client: SupabaseClient | null = null;
 function supabase(): SupabaseClient {
-  client ??= createClient(SUPABASE_URL, SUPABASE_KEY, {
+  client ??= createClient(supabaseUrl(), supabaseKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   return client;

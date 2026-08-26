@@ -114,14 +114,9 @@ export function Home({ brochures, covers, templates, templateCovers, localMode }
       )}
 
       {brochures.length === 0 ? (
-        <div className="empty">
-          <b>Nothing here yet.</b>
-          <p>
-            <strong>New brochure</strong> starts you off from a past season — change the dates and
-            fees, then export. <strong>Import PDF</strong> brings in any other brochure and makes its
-            text editable.
-          </p>
-        </div>
+        <p className="home-sub" style={{ padding: '28px 0' }}>
+          No brochures yet.
+        </p>
       ) : (
         <div className="cards">
           {brochures.map((b) => (

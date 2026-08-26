@@ -36,6 +36,23 @@ const report = await page.evaluate(() => {
       const last = content.lastElementChild;
       if (last) overflow = last.getBoundingClientRect().bottom - innerBottom;
     }
+    // Placed blocks are absolutely positioned, so text that re-wraps longer
+    // than the original lands on the block below instead of pushing it down.
+    // Overlap is therefore the honest measure of import fidelity.
+    const placed = [...pg.querySelectorAll('.rb-placed')].map((e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    });
+    let overlaps = 0;
+    for (let i = 0; i < placed.length; i++) {
+      for (let j = i + 1; j < placed.length; j++) {
+        const a = placed[i], b = placed[j];
+        const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        if (ox > 8 && oy > 6) overlaps++;
+      }
+    }
+
     const wrapped = [];
     pg.querySelectorAll('td, th').forEach((cell) => {
       const lh = parseFloat(getComputedStyle(cell).lineHeight) || 13;
@@ -44,17 +61,19 @@ const report = await page.evaluate(() => {
         wrapped.push(`${lines}L "${cell.textContent.trim().slice(0, 28)}"`);
       }
     });
-    out.push({ page: i + 1, overflowPx: Math.max(0, Math.round(overflow)), wrapped });
+    out.push({ page: i + 1, overflowPx: Math.max(0, Math.round(overflow)), wrapped, overlaps });
   });
   return out;
 });
 
 let bad = 0;
+let overlapping = 0;
 for (const r of report) {
   const flags = [];
   if (r.overflowPx > 2) { flags.push(`OVERFLOW +${r.overflowPx}px`); bad++; }
+  if (r.overlaps) { flags.push(`${r.overlaps} overlapping block(s)`); overlapping += r.overlaps; }
   if (r.wrapped.length) flags.push(`${r.wrapped.length} wrapped cell(s): ${r.wrapped.slice(0, 4).join(', ')}`);
   console.log(`page ${String(r.page).padStart(2)}  ${flags.length ? flags.join('  |  ') : 'clean'}`);
 }
-console.log(`\n${bad} page(s) overflow the sheet.`);
+console.log(`\n${bad} page(s) overflow the sheet, ${overlapping} overlapping block pair(s).`);
 await browser.close();

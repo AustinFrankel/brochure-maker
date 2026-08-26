@@ -370,12 +370,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ui-accent);
 .home-head h1 { font-size: 23px; margin: 0 0 3px; letter-spacing: -0.2px; }
 .home-sub { margin: 0; font-size: 13.5px; color: var(--ui-muted); }
 
-.empty {
-  padding: 44px 0; max-width: 460px;
-}
-.empty b { display: block; font-size: 15px; margin-bottom: 6px; }
-.empty p { margin: 0; font-size: 14px; color: var(--ui-muted); line-height: 1.55; }
-
 .card-blank {
   display: flex; align-items: center; justify-content: center;
   height: 100%; font-size: 12px; color: var(--ui-muted);
