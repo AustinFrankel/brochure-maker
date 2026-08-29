@@ -97,7 +97,7 @@ export function ImportDialog({ onDone }: { onDone?: () => void }) {
             </div>
             <span className="progress-note">
               {phase.label}
-              {phase.total > 1 && ` — ${phase.done} of ${phase.total}`}
+              {phase.total > 1 && `, ${phase.done} of ${phase.total}`}
             </span>
           </div>
         </>

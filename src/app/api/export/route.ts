@@ -16,7 +16,7 @@ function filename(title: string) {
  * Renders `/print/[id]` in headless Chromium and returns a real, vector PDF.
  *
  * It loads the same components and the same stylesheet the editor uses, so the
- * download matches the canvas exactly — there is no second layout engine to
+ * download matches the canvas exactly. There is no second layout engine to
  * drift. If this route ever fails, the editor's "Print / Save as PDF" button
  * does the same thing through the user's own browser.
  */

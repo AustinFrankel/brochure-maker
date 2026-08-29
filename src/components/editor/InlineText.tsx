@@ -26,13 +26,13 @@ type Props = {
 };
 
 /**
- * A live Tiptap instance. Mounted only while its block is selected — one editor
- * per paragraph across fourteen pages would make the canvas crawl — and torn
+ * A live Tiptap instance. Mounted only while its block is selected, since one
+ * editor per paragraph across fourteen pages would make the canvas crawl, and torn
  * down with the component, so nothing ever touches a destroyed editor.
  */
 function LiveText({ html, onChange, className, style, inline }: Props) {
   // The HTML this editor last emitted. Written only from `onUpdate`, never from
-  // a render or an effect keyed on `html` — otherwise it would always equal the
+  // a render or an effect keyed on `html`, or it would always equal the
   // incoming prop and external changes (undo, a theme swap) could never land.
   const lastEmitted = useRef<string | null>(null);
 
@@ -89,7 +89,7 @@ export function PlainEdit({ value, active, onChange, className, style, placehold
   const ref = useRef<HTMLElement>(null);
 
   // `active` is a dependency because switching into edit mode swaps this node
-  // for a childless contentEditable — the text has to be written back in.
+  // for a childless contentEditable, so the text has to be written back in.
   useEffect(() => {
     const el = ref.current;
     if (el && el.textContent !== value && document.activeElement !== el) el.textContent = value;

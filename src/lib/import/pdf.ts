@@ -1,28 +1,20 @@
 'use client';
 
 /**
- * Turn any PDF into an editable brochure.
+ * Turns a PDF into an editable brochure.
  *
- * The approach, and why:
+ * A PDF records where ink was placed, not what the author meant by it, so
+ * inferring a full block structure is guesswork. Instead each page is split
+ * in two:
  *
- * A PDF records *where ink was placed*, not what the author meant. Reverse
- * engineering a full block structure from that is guesswork, and guessing wrong
- * silently rearranges someone's document. So the import splits the page in two:
+ *  1. Non-text content (photos, table fills, rules, logos, borders) is kept as
+ *     drawn, by rendering the page and using it as the page background.
+ *  2. Each run of text becomes an editable block at the coordinates the PDF
+ *     gave it. The background under each run is painted out with the color
+ *     around it so the original glyphs don't show through after an edit.
  *
- *  1. Everything that is not text — photos, table fills, rules, logos, borders —
- *     is kept exactly as drawn, by rendering the page and using it as the page
- *     background.
- *  2. Every run of text is lifted off into a real, editable text block placed at
- *     the coordinates the PDF gave it. The background underneath each run is
- *     painted out with the color that surrounds it, so the original glyphs do
- *     not ghost through once the text is edited.
- *
- * You get a page that looks like the original and whose words can all be
- * retyped, restyled, moved or deleted.
- *
- * Nothing here throws. A page that cannot be parsed still lands as its own
- * rendered image, so the worst case is a faithful but non-editable page rather
- * than a failed import.
+ * Nothing here throws. A page that can't be parsed still lands as its own
+ * rendered image, so the worst case is a page that isn't editable.
  */
 
 import type { Doc, FontId, Page, Placement, Typo } from '@/lib/types';
@@ -46,11 +38,10 @@ export interface ImportOptions {
 }
 
 /**
- * Word's fonts, mapped onto the metric-compatible faces this app ships.
+ * Word's fonts mapped onto the metric-compatible faces this app ships.
  *
- * Order matters, and the specific names come first: "sans-serif" contains
- * "serif", so a serif rule placed above it would quietly swallow every sans
- * face on the page.
+ * Order matters: "sans-serif" contains "serif", so the specific names have to
+ * come first or a serif rule swallows every sans face on the page.
  */
 const FONT_MAP: [RegExp, FontId][] = [
   [/calibri|carlito/i, 'carlito'],
@@ -73,18 +64,12 @@ const PT_PER_INCH = 72;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 /**
- * Measures a line as this app will actually set it.
+ * Measures a line in the face it will actually be set in.
  *
- * The brochures are typeset in Times and Calibri; the app substitutes Tinos and
- * Carlito, which are metric-compatible but not identical to the last hundredth
- * of a point. Over a full line those hundredths add up, and a box sized from the
- * PDF's own numbers can come out one line too narrow. Because imported blocks
- * are positioned absolutely, that extra line does not push its neighbour down —
- * it prints on top of it.
- *
- * So each line is measured in the substituted face at the size it will be set,
- * and the block is made wide enough for the longest of them. Every line that fit
- * in the original still fits, and the text breaks where it always did.
+ * Tinos and Carlito are metric-compatible with Times and Calibri but not
+ * identical, and over a full line the difference can add up to one word too
+ * many. Since imported blocks are absolutely positioned, an extra line prints
+ * on top of the next block instead of pushing it down.
  */
 async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
@@ -136,9 +121,9 @@ function toWords(para: Line[]): Word[] {
 /**
  * Greedy word wrap, the same rule a browser applies, counted in lines.
  *
- * Each word is measured in its own style. Measuring the whole paragraph in the
- * style of its first word underestimates any paragraph with bold in it, and the
- * miss is big enough to cost a line.
+ * Each word is measured in its own style. Using the first word's style for the
+ * whole paragraph underestimates anything containing bold, by enough to cost a
+ * line.
  */
 function countLines(words: Word[], widthPt: number, measure: Measure): number {
   if (!words.length) return 0;
@@ -157,18 +142,13 @@ function countLines(words: Word[], widthPt: number, measure: Measure): number {
 }
 
 /**
- * The width at which this paragraph sets in the same number of lines it had in
- * the PDF.
+ * The width at which a paragraph sets in the same number of lines it had in the
+ * PDF.
  *
- * Sizing a box from the PDF's own numbers is not enough. Tinos and Carlito are
- * metric-compatible with Times and Calibri but not identical, and over a full
- * measure those fractions add up to one word too many. Because imported blocks
- * are positioned absolutely, an extra line does not push its neighbour down —
- * it prints on top of it, which is exactly the overlapping text that makes an
- * import look broken.
- *
- * So the wrap is simulated at increasing widths until the line count matches,
- * within a ceiling that keeps the box inside the page.
+ * Sizing the box from the PDF's own numbers isn't enough, for the font reasons
+ * above, and an extra line overlaps the block below. The wrap is simulated at
+ * increasing widths until the line count matches, capped so the box stays
+ * inside the page.
  */
 function widthForOriginalLines(
   para: Line[], startPt: number, maxPt: number, measure: Measure,
@@ -187,10 +167,10 @@ function widthForOriginalLines(
  * The PostScript name of the face a run was set in, e.g.
  * `BCDGEE+TimesNewRomanPS-BoldMT`.
  *
- * `getTextContent().styles` only reports a generic family ("serif"), which is
- * not enough to tell Times from Times Bold — and bold carries much of the
- * meaning in these brochures. The real name lives on the loaded font object,
- * which is populated once the page has been rendered.
+ * `getTextContent().styles` only reports a generic family ("serif"), which
+ * can't distinguish Times from Times Bold, and bold carries a lot of the
+ * meaning in these brochures. The real name is on the loaded font object,
+ * populated once the page has rendered.
  */
 function fontNameOf(
   page: { commonObjs: { has(k: string): boolean; get(k: string): unknown } },
@@ -231,21 +211,16 @@ interface Line {
 /**
  * Finds the vertical whitespace channels that separate columns.
  *
- * This has to be done before anything else, because a two-column page puts the
- * first line of the left column and the first line of the right column on the
- * same baseline. Joining those produces sentences that interleave two unrelated
- * paragraphs — "The Center is utilized for Senior Citizens on weekdays, recrea-
- * tion on week nights", where the second half belongs to a different park.
+ * This runs before anything else. A two-column page puts the first line of each
+ * column on the same baseline, and joining those interleaves two unrelated
+ * paragraphs into one sentence.
  *
- * Splitting on wide horizontal gaps is not good enough, and measurably so: on
- * these brochures the column gutter is about 12pt while a tab stop inside a
- * single line reaches 42pt. Gap width simply does not separate the two cases.
- *
- * What does separate them is that a gutter is a gap in the *same place on every
- * line*. So the page is scanned for the x with the fewest runs crossing it. A
- * handful of crossings is expected and fine — page headers legitimately span
- * both columns — so the split is accepted whenever crossings fall to a small
- * fraction of the page's runs.
+ * Splitting on wide horizontal gaps doesn't work here: the column gutter is
+ * about 12pt while a tab stop inside a single line reaches 42pt. What does
+ * separate them is that a gutter falls in the same place on every line, so the
+ * page is scanned for the x fewest runs cross. A few crossings are fine, since
+ * page headers legitimately span both columns, so the test is a dip in
+ * crossings rather than an empty channel.
  */
 interface Column {
   x0: number;
@@ -271,7 +246,7 @@ function detectColumns(runs: Run[], pageWidth: number, depth = 0): Column[] {
   const sorted = [...counts].sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
 
-  // A gutter need not be a wide empty channel — where a column is justified,
+  // A gutter need not be a wide empty channel. Where a column is justified,
   // the cleanest cut can be a single x. What identifies it is that crossings
   // *dip*: a genuinely single-column page crosses evenly all the way across.
   const tolerance = Math.max(2, Math.floor(runs.length * 0.06));
@@ -323,7 +298,7 @@ function bucketByColumn(runs: Run[], cols: Column[]): { col: Column; runs: Run[]
 
     // Only a run that reaches well into the next column is really spanning.
     // Justified text routinely overshoots its measure by a point or two, and
-    // treating that as full-width strands the last word of a line — the
+    // treating that as full-width strands the last word of a line: the
     // hyphenated half of "recrea-tion" ends up in a block of its own, printed
     // on top of the line below.
     const over = Math.max(owner.col.x0 - r.x, (r.x + r.w) - owner.col.x1);
@@ -336,17 +311,13 @@ function bucketByColumn(runs: Run[], cols: Column[]): { col: Column; runs: Run[]
 }
 
 /**
- * Returns short lines that belong to a full-width paragraph to it.
+ * Returns short trailing lines to the full-width paragraph they belong to.
  *
- * A banner that runs across both columns is assigned line by line, and its last
- * line is usually short enough to sit inside one column — so it is filed there,
- * away from the sentence it finishes. The two halves then render on top of each
- * other: "DO NOT CALL. It is the players' the schedule" over "responsibility to
- * go and check the condition".
- *
- * Anything directly beneath a full-width line, on the same left edge and within
- * a line's pitch, is part of that paragraph and is moved back. The sweep repeats
- * because reclaiming one line can expose the next.
+ * A banner spanning both columns is assigned line by line, and its last line is
+ * often short enough to sit inside one column, so it gets filed there and
+ * renders on top of the sentence it finishes. Anything directly beneath a
+ * full-width line, on the same left edge and within a line's pitch, is moved
+ * back. The sweep repeats because reclaiming one line can expose the next.
  */
 function reclaimFullWidthLines(buckets: { col: Column; lines: Line[]; full?: boolean }[]): void {
   const wide = buckets.find((b) => b.full);
@@ -406,13 +377,13 @@ function sameStyle(a: Line, b: Line) {
 }
 
 /**
- * True when every line but the last ends on the same right edge — the signature
+ * True when every line but the last ends on the same right edge, the signature
  * of justified text.
  *
  * Worth detecting because alignment decides where lines break. Re-setting
  * justified copy as left-aligned gives a different number of lines, and since
  * imported blocks are positioned absolutely, an extra line does not push the
- * next block down — it overlaps it.
+ * next block down, it overlaps it.
  */
 function looksJustified(lines: Line[]): boolean {
   if (lines.length < 3) return false;
@@ -423,7 +394,7 @@ function looksJustified(lines: Line[]): boolean {
   if (spread > Math.max(2, size * 0.22)) return false;
 
   // Justified copy ends flush *except* on its last line. A stack of equal-width
-  // values — a column of phone numbers — is flush on every line including the
+  // values, such as a column of phone numbers, is flush on every line including the
   // last, and calling that justified made it look like prose and run all the
   // numbers together on one line.
   const last = lines[lines.length - 1];
@@ -480,8 +451,8 @@ const esc = (s: string) =>
  * with nothing between them. A gap wide enough to be deliberate becomes a space.
  *
  * Between lines: prose that wrapped should be joined with a space so it reflows
- * when edited, but a stack of separate values — a column of phone numbers, a
- * list of program names — must keep its breaks or it collapses into one long
+ * when edited, but a stack of separate values, such as a column of phone
+ * numbers, must keep its breaks or it collapses into one long
  * line.
  *
  * Geometry alone cannot tell these apart. A column of phone numbers and a
@@ -489,13 +460,13 @@ const esc = (s: string) =>
  * and both do it line after line.
  *
  * What does separate them is how the next line begins. Prose that wrapped
- * resumes mid-sentence — a lowercase word, or the far side of a hyphen the
+ * resumes mid-sentence with a lowercase word, or the far side of a hyphen the
  * typesetter inserted. A new item in a list starts the way any new thing starts:
  * a capital, or a digit. So a line break is kept unless the next line reads as a
  * continuation of the one above.
  *
  * A break is also treated as soft when the next word plainly could not have
- * fitted on the line above — the typesetter had no choice there, whatever the
+ * fitted on the line above. The typesetter had no choice there, whatever the
  * next word happens to start with. That is what keeps a bold sentence like
  * "Rating Session will take place on March 23rd" from being chopped at every
  * capital.
@@ -509,13 +480,13 @@ const esc = (s: string) =>
  * become "recreation", not "recrea- tion", and it has to be one word for the
  * text to re-wrap sensibly after an edit.
  *
- * Table rows defeat the length test on their own — a row of fee columns is as
- * long as a sentence and reaches just as far across the measure — so a line
+ * Table rows defeat the length test on their own, since a row of fee columns is
+ * as long as a sentence and reaches just as far across the measure, so a line
  * built out of tab stops is always treated as its own line. Without that, a fee
  * table collapses into one paragraph reading "2 days 9/3-4/26 $295/month RSS
  * MPR 3 days 9/3-4/26 $400/month…".
  */
-/** How many gaps in a line are too wide to be word spacing — i.e. tab stops. */
+/** How many gaps in a line are too wide to be word spacing, i.e. tab stops. */
 function tabStops(line: Line): number {
   let n = 0;
   for (let i = 1; i < line.runs.length; i++) {
@@ -557,7 +528,7 @@ function splitCells(para: Line[]): Line[][] {
 }
 
 /**
- * True for a run of lines that all begin and end together — a column of phone
+ * True for a run of lines that all begin and end together: a column of phone
  * numbers or fees, rather than prose. Justified text also ends flush, so it is
  * excluded explicitly.
  */
@@ -566,8 +537,8 @@ function isValueStack(lines: Line[]): boolean {
   const size = lines[0].size;
 
   // The decisive test is width. Justified prose is also flush on both edges, and
-  // a paragraph whose last line happens to run full — because the sentence
-  // carries on into the next block — slips past the justification check. But
+  // a paragraph whose last line happens to run full, because the sentence
+  // carries on into the next block, slips past the justification check. But
   // prose is set across a measure of twenty-odd characters, and a column of
   // phone numbers or fees is a handful. Without this, whole paragraphs came
   // back with a hard break on every line: "Teams will<br>be formed by coaches".
@@ -581,7 +552,7 @@ function isValueStack(lines: Line[]): boolean {
 
 function paragraphHtml(lines: Line[], measure: Measure): string {
   // How far the type ran: the longest line of this paragraph. Deliberately not
-  // the detected column edge — where no column boundary was found that edge is
+  // the detected column edge. Where no column boundary was found that edge is
   // the whole sheet, and every break then looks like a deliberate one. Lists of
   // equal-width values, the case this would misjudge, are tabular and have
   // already been split into their own cells before reaching here.
@@ -657,8 +628,8 @@ function paragraphHtml(lines: Line[], measure: Measure): string {
  * the ground is a flat color at all.
  *
  * Sampled from a thin ring just *outside* the text box rather than from the box
- * itself. The ring is background by construction — no glyphs of this paragraph
- * reach it — so the winning color is the ground even for dense bold text, where
+ * itself. The ring is background by construction, since no glyphs of this
+ * paragraph reach it, so the winning color is the ground even for dense bold text, where
  * ink can cover enough of the box interior to beat the paper.
  *
  * The share of the ring taken by that one color is the useful signal: on paper
@@ -703,7 +674,7 @@ function groundColor(
   // Count everything close to the winner, not only exact matches. A panel with
   // a soft gradient or a rounded border is still a flat enough ground to paint
   // on, but its pixels scatter across neighbouring buckets and an exact count
-  // reads it as busy — which left the header row of every schedule table stuck
+  // reads it as busy, which left the header row of every schedule table stuck
   // in the background image instead of becoming editable text.
   let near = 0;
   for (const [k, n] of counts) {
@@ -720,7 +691,7 @@ function groundColor(
   return { rgb, fraction: total ? near / total : 0 };
 }
 
-/** Darkest pixel in a box — for text on a lighter ground, that is the ink. */
+/** Darkest pixel in a box. For text on a lighter ground, that is the ink. */
 function inkColor(
   data: Uint8ClampedArray, cw: number,
   x0: number, y0: number, x1: number, y1: number,
@@ -739,7 +710,7 @@ function inkColor(
       if (d > bestDist) { bestDist = d; best = [data[i], data[i + 1], data[i + 2]]; }
     }
   }
-  // Too close to the background to be a deliberate color — leave it inherited.
+  // Too close to the background to be a deliberate color, so leave it inherited.
   if (!best || bestDist < 2200) return undefined;
   const hex = '#' + best.map((c) => c.toString(16).padStart(2, '0')).join('');
   return hex === '#000000' ? undefined : hex;
@@ -757,7 +728,7 @@ export async function importPdf(file: File, opts: ImportOptions): Promise<Doc> {
   report(0, 1, 'Reading the file');
 
   // Webfonts load lazily, and a face that has not loaded measures as a fallback
-  // — which would defeat the whole point of measuring. Ask for them up front.
+  // which would defeat the point of measuring. Ask for them up front.
   await ensureFonts();
 
   const pdfjs = await import('pdfjs-dist');
@@ -805,7 +776,7 @@ type PdfDoc = import('pdfjs-dist').PDFDocumentProxy;
  *
  * Substituting Tinos for Times is faithful to a fraction of a point, and over a
  * paragraph those fractions occasionally add a line. Because these blocks are
- * positioned absolutely, that line does not push its neighbour down — it prints
+ * positioned absolutely, that line does not push its neighbour down, it prints
  * on top of it. Three percent tighter leading is not something anyone will
  * notice; two paragraphs printed over each other is the first thing they will.
  *
@@ -880,7 +851,7 @@ async function importPage(
         italic: /italic|oblique/i.test(psName),
       });
     }
-  } catch { /* no text layer — the page still lands as its background */ }
+  } catch { /* no text layer; the page still lands as its background */ }
 
   // Columns first, then lines and paragraphs inside each one. Doing it in this
   // order is what stops two columns being welded into one sentence.
@@ -902,7 +873,7 @@ async function importPage(
   for (const { col, paragraphs } of groups) {
   // A paragraph whose lines are built from tab stops is a table. Emitting it as
   // one text block would replace aligned columns with single spaces, and a fee
-  // table would stop lining up — so each cell becomes its own placed block, at
+  // table would stop lining up, so each cell becomes its own placed block, at
   // the x the PDF gave it. The columns stay aligned and every figure stays
   // editable, which is exactly the part of a brochure that changes each season.
   for (const para of paragraphs.flatMap(splitCells)) {
@@ -917,7 +888,7 @@ async function importPage(
 
     // `top` is already a full em above the baseline, which clears the tallest
     // ascender, so almost no headroom is needed. Padding it further reached into
-    // the line above and erased the top half of it — which is what clipped the
+    // the line above and erased the top half of it, which is what clipped the
     // header row off every schedule table.
     const bx0 = clampX((x - 1) * scale);
     const by0 = clampY((top - size * 0.03) * scale);
@@ -930,14 +901,14 @@ async function importPage(
     // Painting the old glyphs out only works where the ground behind them is a
     // flat color. Over a photograph or a gradient the fill would be a visible
     // rectangle of the wrong shade, so that text is left as part of the
-    // background image instead — it stops being editable, but nothing is
+    // background image instead. It stops being editable, but nothing is
     // damaged, which is the better trade for artwork.
     // Measured across these brochures the ring is 0.91 flat at the median and
     // above 0.77 for nine paragraphs in ten; what falls below sits on photos.
     if (ground.fraction < 0.65) continue;
 
     // Sampled from the glyph band only. Reaching into the padding can pick up
-    // the line above — which is how tan text ended up rendered black.
+    // the line above, which is how tan text ended up rendered black.
     const color = inkColor(
       pixels, canvas.width,
       bx0, clampY(top * scale), bx1, clampY((bottom - size * 0.12) * scale),
@@ -965,7 +936,7 @@ async function importPage(
       ),
       html,
       pos: {
-        // Rounded to thousandths of an inch — finer than any printer resolves,
+        // Rounded to thousandths of an inch, finer than any printer resolves,
         // and it keeps the inspector's number fields readable.
         x: round3(x / PT_PER_INCH),
         y: round3((top - size * 0.24) / PT_PER_INCH),
@@ -974,7 +945,7 @@ async function importPage(
         // sits at the ragged right of the copy, so it can fall a few points
         // *inside* the true measure, and a box that narrow re-wraps the text one
         // line longer than the original. Since these blocks are positioned
-        // absolutely, that extra line does not push the next block down — it
+        // absolutely, that extra line does not push the next block down, it
         // lands on top of it. A single line only needs the width it occupies.
         w: round3(Math.max(0.25, setWidthPt) / PT_PER_INCH),
       },

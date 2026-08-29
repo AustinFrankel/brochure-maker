@@ -45,7 +45,7 @@ interface EditorState {
   moveBlock: (id: string, toPageIndex: number, toIndex: number) => void;
 }
 
-/** Only the document participates in undo/redo — selection and save status don't. */
+/** Only the document participates in undo/redo, not selection or save status. */
 const trackedKeys = ['doc'] as const;
 
 export const useEditor = create<EditorState>()(

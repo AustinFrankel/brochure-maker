@@ -157,7 +157,7 @@ export function page(blocks: Block[], o: Partial<Omit<Page, 'id' | 'blocks'>> = 
   return { id: newId(), background: NONE, frame: null, ...o, blocks };
 }
 
-/** "Checks payable to Rye Brook Recreation." — appears on nearly every program. */
+/** "Checks payable to Rye Brook Recreation." Appears on nearly every program. */
 export const CHECKS = 'Checks payable to Rye Brook Recreation.';
 export const CHECKS_MAKE = 'Make Checks payable to Rye Brook Recreation';
 

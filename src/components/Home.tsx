@@ -76,7 +76,7 @@ export function Home({ brochures, covers, templates, templateCovers, localMode }
 
       {localMode && (
         <div className="notice">
-          Running without cloud storage — brochures are saved to <code>.data/brochures.json</code> on
+          Running without cloud storage. Brochures are saved to <code>.data/brochures.json</code> on
           this machine only. Set the Supabase environment variables to sync across devices.
         </div>
       )}

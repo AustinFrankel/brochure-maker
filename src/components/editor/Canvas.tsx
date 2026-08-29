@@ -84,7 +84,7 @@ export function Canvas({ doc, zoom }: { doc: Doc; zoom: number }) {
             </div>
             {overflow[page.id] && (
               <div className="page-overflow">
-                ⚠ Content runs past the bottom of this page — move a block to the next page or shorten the text.
+                ⚠ Content runs past the bottom of this page. Move a block to the next page, or shorten the text.
               </div>
             )}
             <div style={{ width: 816, transform: `scale(${zoom})`, transformOrigin: 'top left', height: 1056 * zoom }}>

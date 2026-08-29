@@ -100,7 +100,7 @@ export function PageSurface({
       data-page-index={index}
       style={{
         // The theme variables live on the page itself, so a page carries its own
-        // typography no matter who renders it — the editor canvas, the rail
+        // typography no matter who renders it: the editor canvas, the rail
         // thumbnails, or the PDF. Putting them on a parent made it possible to
         // forget one, and the canvas then silently inherited the app's own font.
         ...themeVars(doc.theme),

@@ -40,8 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local file-backed store (used when DATABASE_URL is unset)
+# local file-backed store (used when Supabase is not configured)
 /.data
 
 # rendered page comparisons from scripts/shots.mjs
 /.shots*
+

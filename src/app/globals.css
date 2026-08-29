@@ -157,7 +157,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ui-accent);
 
 .page-wrap { position: relative; flex: none; }
 
-/* Pages outside the viewport are not laid out or painted — without this the
+/* Pages outside the viewport are not laid out or painted. Without this the
    editor holds twenty-eight full letter pages live at once and the tab can die.
    The hint is placed on `.rb-page`, whose box is always exactly 816x1056, so
    skipping a page never changes the scroll height. */

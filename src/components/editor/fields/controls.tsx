@@ -79,7 +79,7 @@ export function Toggle({ label, value, onChange }: { label: string; value: boole
 
 /**
  * The one-tap color picker: the six brand colors, plus white, "none" and a
- * custom well. Used for text color, fills, borders — everywhere color appears.
+ * custom well. Used for text color, fills, borders, everywhere color appears.
  */
 export function Swatches({ label, value, onChange, theme, allowNone, noneLabel }: {
   label?: string;

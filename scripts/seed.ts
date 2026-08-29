@@ -16,7 +16,7 @@ import { store } from '../src/lib/db';
 for (const f of ['.env.local', '.env']) config({ path: f, quiet: true });
 import { TEMPLATES, buildTemplate } from '../src/lib/templates';
 
-/** The starters, newest season first — the order they appear on the home page. */
+/** The starters, newest season first, matching the home page order. */
 const SEED = ['winter-2025-2026', 'spring-summer-2026', 'fall-2025'];
 
 async function main() {
@@ -29,13 +29,13 @@ async function main() {
     if (!info) continue;
 
     if (!force && existing.some((b) => b.title === info.name)) {
-      console.log(`· ${info.name} — already there, skipping`);
+      console.log(`· ${info.name}: already there, skipping`);
       continue;
     }
 
     const doc = buildTemplate(id, info.name);
     const rec = await s.create(info.name, doc);
-    console.log(`✓ ${rec.title} — ${rec.doc.pages.length} pages  /edit/${rec.id}`);
+    console.log(`✓ ${rec.title}: ${rec.doc.pages.length} pages  /edit/${rec.id}`);
   }
 }
 

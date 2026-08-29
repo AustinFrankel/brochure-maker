@@ -11,7 +11,7 @@ import { Inspector } from './Inspector';
 import { PageRail } from './PageRail';
 
 const STATUS: Record<SaveState, string> = {
-  idle: '', saving: 'Saving…', saved: 'Saved', error: 'Not saved — retrying',
+  idle: '', saving: 'Saving…', saved: 'Saved', error: 'Not saved, retrying',
 };
 
 function ExportMenu({ id, doc, onClose, anchor, open }: {
@@ -65,7 +65,7 @@ function ExportMenu({ id, doc, onClose, anchor, open }: {
         </button>
         <div style={{ fontSize: 12, color: 'var(--ui-muted)', lineHeight: 1.4 }}>
           Both give the same fourteen Letter pages. Printing goes through your own browser, so it
-          works even if the server is busy — on iPad choose <b>Save to Files</b>.
+          works even if the server is busy. On iPad, choose <b>Save to Files</b>.
         </div>
         <hr style={{ border: 0, borderTop: '1px solid var(--ui-line)', margin: '2px 0' }} />
         <button className="btn btn-sm" onClick={exportJson}>Save a .json backup</button>
@@ -88,7 +88,7 @@ export function TopBar({ id, doc, saveState, zoom, setZoom, onJump }: {
   const { undo, redo, canUndo, canRedo } = useTemporal();
 
   // The popover hangs off whichever button opened it. That element is captured
-  // in the click handler — reading a ref during render would not re-render the
+  // in the click handler. Reading a ref during render would not re-render the
   // popover once the ref filled in.
   const [menu, setMenu] = useState<{ id: 'pages' | 'theme' | 'export' | 'edit'; anchor: HTMLElement } | null>(null);
   const open = (id: 'pages' | 'theme' | 'export' | 'edit') => (e: React.MouseEvent<HTMLButtonElement>) =>

@@ -26,7 +26,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   spacer:        'Spacer',
 };
 
-/** Order of the "add block" menu — most-used first. */
+/** Order of the "add block" menu, most-used first. */
 export const BLOCK_MENU_ORDER: BlockType[] = [
   'program', 'richText', 'sectionTitle', 'infoTable', 'photo', 'highlightBox',
   'labelValue', 'qr', 'socialRow', 'directoryBox', 'sidebarBox', 'formFields',

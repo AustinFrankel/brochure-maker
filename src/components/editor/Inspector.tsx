@@ -160,7 +160,7 @@ function TypeFields({ block, theme }: { block: Block; theme: Doc['theme'] }) {
           <Swatches label="Heading color" theme={theme} value={g.headingColor} onChange={(c) => p({ headingColor: c ?? '@purple' })} />
           <Field label="Description">
             <div style={{ fontSize: 12.5, color: 'var(--ui-muted)', lineHeight: 1.4 }}>
-              Type straight onto the page — the description is live while this block is selected.
+              Type straight onto the page. The description is live while this block is selected.
             </div>
           </Field>
           <RowList
@@ -507,7 +507,7 @@ export function Inspector({ doc }: { doc: Doc }) {
         {block.pos ? (
           <>
             <div style={{ fontSize: 12.5, color: 'var(--ui-muted)', lineHeight: 1.45, marginBottom: 10 }}>
-              This block sits at a fixed spot on the page — drag the ⠿ handle to move it,
+              This block sits at a fixed spot on the page. Drag the ⠿ handle to move it,
               or set the numbers below.
             </div>
             <div className="fld-row">

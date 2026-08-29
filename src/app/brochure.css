@@ -64,7 +64,7 @@
 /* A page whose band holds the cover stretches that band to the full sheet.
    Written as a descendant match, not a child match: in the editor every block
    is wrapped in a `.blk` selection shell, and a `>` here would silently stop
-   applying — the canvas and the PDF must agree. */
+   applying, and the canvas and the PDF must agree. */
 .rb-band-full:has(.rb-block-cover) { flex: 1 1 auto; min-height: 0; }
 .rb-band-full:has(.rb-block-cover) > .blk { height: 100%; }
 .rb-block-cover { height: 100%; }
@@ -148,7 +148,7 @@
      The Word original autofits these tables the same way. */
   table-layout: auto;
   font-weight: 700;
-  font-size: 13.3px;      /* 10pt — matches body */
+  font-size: 13.3px;      /* 10pt, matching body */
   margin: 3px 0;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;

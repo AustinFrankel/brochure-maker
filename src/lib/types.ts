@@ -10,7 +10,7 @@
  *
  *  - **Placed** (`block.pos` set). The block sits at fixed coordinates on the
  *    page. Imported PDFs land this way, because a PDF records where each run of
- *    text was painted and not why — guessing a flow order from that would move
+ *    text was painted and not why. Guessing a flow order from that would move
  *    things the author never meant to move.
  *
  * Both kinds can share a page, and a placed block can be released back into the

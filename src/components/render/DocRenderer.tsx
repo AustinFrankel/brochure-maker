@@ -3,7 +3,7 @@
 import type { Doc } from '@/lib/types';
 import { PageSurface } from './PageSurface';
 
-/** Chrome-free render of every page — this is what `/print/[id]` serves. */
+/** Chrome-free render of every page. This is what `/print/[id]` serves. */
 export function DocRenderer({ doc }: { doc: Doc }) {
   return (
     <div className="rb-doc">

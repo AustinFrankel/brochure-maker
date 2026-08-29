@@ -25,7 +25,7 @@ const report = await page.evaluate(() => {
   const out = [];
   document.querySelectorAll('.rb-page').forEach((pg, i) => {
     const content = pg.querySelector('.rb-content');
-    // `.rb-content` clips, which makes scrollHeight unreliable here — Chrome
+    // `.rb-content` clips, which makes scrollHeight unreliable here: Chrome
     // clamps it to clientHeight. Measure the last band against the inner edge
     // of the padding box instead.
     let overflow = 0;

@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
  *
  * Straight to storage, rather than through this app's own API, because a
  * serverless request body caps out at 4.5MB and a phone photo routinely exceeds
- * that — and because importing a 14-page PDF means uploading a dozen page
+ * that, and because importing a 14-page PDF means uploading a dozen page
  * images at once, which is not something to funnel through a function.
  */
 
@@ -64,8 +64,8 @@ function inlineFallback(blob: Blob): Promise<string> {
 }
 
 /**
- * A photo straight off a phone is often 8MB+. Shrink it first — print never
- * needs more than about 2400px on the long edge — then upload.
+ * A photo straight off a phone is often 8MB+. Shrink it first, since print
+ * never needs more than about 2400px on the long edge, then upload.
  */
 export async function uploadImage(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('That file is not an image.');

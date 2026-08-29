@@ -35,7 +35,7 @@ export const TEMPLATES: TemplateInfo[] = [
   {
     id: 'fall-2025',
     name: 'Fall 2025',
-    blurb: 'Rebuilt block by block — every heading, table and photo reflows as you edit.',
+    blurb: 'Rebuilt block by block, so every heading, table and photo reflows as you edit.',
     pages: 14,
     kind: 'blocks',
   },
@@ -66,7 +66,7 @@ export function buildTemplate(id: string, title: string): Doc {
   return (BUILDERS[id] ?? BUILDERS['fall-2025'])(title);
 }
 
-/** First page only — enough to draw a card thumbnail without shipping the rest. */
+/** First page only, enough to draw a card thumbnail without shipping the rest. */
 export function templateCover(id: string): Doc | null {
   const raw =
     id === 'spring-summer-2026' ? springSummer2026

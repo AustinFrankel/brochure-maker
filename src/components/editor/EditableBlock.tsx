@@ -13,7 +13,7 @@ import { uploadImage } from '@/lib/upload';
  * drag by the handle to reorder, drop an image file on it to fill a photo.
  *
  * Dragging is handle-only so that selecting text inside a block never starts a
- * drag — important on touch, where the two gestures are otherwise identical.
+ * drag, which matters on touch where the two gestures are otherwise identical.
  */
 export function EditableBlock({ block, theme }: { block: Block; theme: Theme }) {
   const selected = useEditor((s) => s.selectedBlockId === block.id);

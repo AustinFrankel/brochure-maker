@@ -1,10 +1,10 @@
--- Brochure Maker — the whole database.
+-- Brochure Maker: the whole database.
 --
 -- Run this in a fresh Supabase project's SQL editor, then put the project URL
 -- and its publishable (anon) key in NEXT_PUBLIC_SUPABASE_URL and
 -- NEXT_PUBLIC_SUPABASE_ANON_KEY.
 --
--- Note the access model: this app has no accounts by design — it is an internal
+-- Note the access model: this app has no accounts by design. It is an internal
 -- tool for a small group who all work on the same brochures. The policies below
 -- are therefore deliberately open to the anonymous key. Row level security is
 -- switched on rather than left off so that tightening access later is a policy

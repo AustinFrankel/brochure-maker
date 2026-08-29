@@ -16,7 +16,8 @@
  * internal tool for a small group who all share the same brochures, and a login
  * wall would cost them more than it protects.
  *
- * NOTE: no `server-only` guard — `scripts/seed.ts` imports this from Node. The
+ * NOTE: no `server-only` guard, because `scripts/seed.ts` imports this from
+ * Node. The
  * `node:fs` import already keeps it out of any client bundle.
  */
 import { promises as fs } from 'node:fs';
@@ -45,7 +46,7 @@ export interface Store {
 
 /**
  * Read on use, not at import. A script that loads a .env file does so in its own
- * module body, which runs *after* its imports have already been evaluated — so
+ * module body, which runs after its imports have already been evaluated, so
  * capturing these into constants here meant a seed script silently wrote to the
  * local JSON file while the app was talking to Supabase.
  */
